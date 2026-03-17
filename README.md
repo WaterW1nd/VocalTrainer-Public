@@ -127,4 +127,4 @@ screenshot.png       — App screenshot shown in README
 
 ## License
 
-MIT — see `LICENSE` file (placeholder; confirm before publishing).
+MIT — see `LICENSE` file.
