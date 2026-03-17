@@ -35,14 +35,14 @@ A local, browser-based vocal training tool that plays your backing track and MID
 
 ## Quick Start
 
-1. Serve the project folder over HTTP:
-   ```
-   python -m http.server 8080
-   ```
-2. Open `http://localhost:8080` in Chrome 110+ and grant microphone permission when prompted.
-3. Drop your audio file(s) onto the **Аудио-фонограмма** zone and your MIDI file onto the **MIDI вокальная партия** zone, then click **▶ Начать тренировку**.
+## How to Run
 
-> The app cannot run from `file://` — AudioWorklet requires HTTP or HTTPS.
+Open `index.html` directly in Chrome 110+ (double-click).
+
+> **Note:** For best pitch detection accuracy, serve via HTTP instead:
+> `python -m http.server 8080` → `http://localhost:8080`
+> Direct file:// launch uses a fallback audio engine and works fine for casual use.
+
 
 ## How It Works
 
