@@ -1,0 +1,3489 @@
+<!DOCTYPE html>
+<!--
+   ______                            __
+  / ____/___  ____ ___  ____  __  __/ /____  _____
+ / /   / __ \/ __ `__ \/ __ \/ / / / __/ _ \/ ___/
+/ /___/ /_/ / / / / / / /_/ / /_/ / /_/  __/ /
+\____/\____/_/ /_/ /_/ .___/\__,_/\__/\___/_/
+                    /_/
+        Created with Perplexity Computer
+        https://www.perplexity.ai/computer
+-->
+<!-- REFACTOR CHANGELOG
+  [P0-1] BufferSourceNode leak fixed — .disconnect() now called in stopAudioPlayback()
+  [P0-2] recDest leak fixed — gainNode disconnected from dest and state.recDest nulled in stopRecording()
+  [P0-3] Metronome OscillatorNode/GainNode leak fixed — osc.onended disconnects both nodes
+  [P0-4] All script-level declarations wrapped in IIFE — no window-scope leaks
+  [P0-5] RAF handle verified: stopRenderLoop() called in all teardown paths
+  [P1-1] CONFIG object extracted — all magic numbers replaced with named keys
+  [P1-2] CONFIG.VERDICT_COLORS map consolidates verdict colours used across 3 draw sites
+  [P1-3] drawOverviewStrip() now reads state.pitchRangeMin/Max — duplicate range loop removed
+  [P1-4] Dead code annotated: runShortCountdown stub, if(false) block in drawOverviewStrip
+  [P1-5] pendingAudioFiles / pendingMidiBuffer moved into state.load sub-object
+  [P1-6] _autoFillSongName() helper deduplicates audio-filename→song-name logic
+  [P1-7] _setMidiFile() helper deduplicates dual MIDI buffer assignment
+  [P1-8] pitchRangeMin/Max moved into state object
+  [P1-9] rafId, metronomeTimerId, toastTimer, _savingKaraoke, lyrics cache → state/module vars inside IIFE
+  [P2-1] Zero var declarations — all const/let (was already clean, verified)
+  [P2-2] All static inline style="" attributes converted to CSS classes
+  [P2-3] Consistent naming throughout: CONFIG UPPER_SNAKE, classes PascalCase, vars/fns camelCase
+  [P2-4] JSDoc one-liners added to every public function
+  [P2-5] CSS grouped into === SECTION === blocks, duplicate .lyric-line rules collapsed
+  [P2-6] pitch-processor.js constants named (SILENCE_RMS_FLOOR, MIDI_NOTE_MIN/MAX, A4_HZ/MIDI)
+  [P2-7] console.error added to previously silent error paths in catch blocks
+-->
+
+<!-- Perplexity Computer Attribution — SEO Meta Tags -->
+<meta name="generator" content="Perplexity Computer">
+<meta name="author" content="Perplexity Computer">
+<meta property="og:see_also" content="https://www.perplexity.ai/computer">
+<link rel="author" href="https://www.perplexity.ai/computer">
+
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vocal Trainer</title>
+  <script type="text/javascript" src="https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=8_j2rgxedTmDY795n3OhrALm2o9xhFKHVQBxxiVTVGKbKf21rlm_5f5n-9T70hfJStNYcXLO3kaZOLQflhgTXzd-KDtIMMYlhTfIf2GTNQ2rN6HCaubOzWT_CNeSnqMNPWpCFROT1VmjAbjaiCW6hH9LtLQrjCCYYqfuxnV2kNR4UDk57HdUmLO8BGSlFWo_heh5NQLY6ieH_3yGw1sL2miSMxIiEnSTU9AdXrO6GScgzbcH_3oR2S7tb6P55AcrA9prB4inpxpaYhGJ17wb_7_yWXQ3WWZdvpQAnQVb3UC6jNz_pnP7Da_JURAeGEMr9KOpEO4XuFEDYO9GyYMbCDkqo5bvZ4zIQcz9-yWbAIIWfEt10TIQRmWs-0mWUzJEf3Pk1g81ZfTFseHFl_ofIzju6SWfJZ2Ip9wdsdIDKY3u81ppCXXznwQsDGy_6ypg24ptf6RlLk-0bOsfLDDdA5PIpxH6BpmHLU4oa1-cpnNX9BRbHfw1aBtmsmky74WrpEhYzqvzajUvoL0SRAUyopIBKXm9GOcKofSBZa4OwTRbciNM1xWtAVAXp1vhoKpJf8rVqOBkY0kKXQltVcBe1qRyeVLDFTKlwFsPfiOHQXk2KJv7jC4C5YCXTCWx9KYRkcuJtpiGLyb13GhzNA5oq9b01D0UJRbTJ8jEETF1T5R5G-lYo4MGggVE_Bc1YmVtTGAKQW5GJHCcbrkkwU9pUViNsylaNeIIQ8lrp1O8yGNtrQ78vcOBCaQ3UdSXEztW0pDQfj2Ek0kMuzOTM-398Zu5fRLwwFulTOWo7l5jlzEhBCWQstSko-6vTGn-BQFS9jmGGktW69nK-u2OHK33dN48h8F2-LxPHU8lEghVNBHBucZ6GC80qQHsQGQT_uw7zORK5D6-vm7Er5XvyGCFYLZAWrdBPHK_LJ_C5su32J5Ldwh3nvww1u0OxGcX2cs9C1iA2t8swhp3dctH_qguLIfZf-LwkKnt9a-QW-VDeCTnIwTuXUEvjYjha8sXCDUvL1uAMH5h7Ej29VkzFUg-0ct-4rgc80lEs4GEg2oAGegafM9s1eGEWfZYvOUuEFSH_33rT0P1ltlNoJOgGfg-kmDQvE3-E6Zf_kjgkiJnWYc_ZKCSzwUDP9DhWEUAySwNOqt9x8pMPjE8xv8W2rgiCBaz1XtdP8H9bZAQtexX_pfuWwpyo9vzrrS5XETDBUDBS26FwhrLjj0jEw5_fn9VApRhJVprVT6Sdx2tYB65jD_ceW_za3d1GfKQ4LboPe-3Yf6MvRZ7Dk90VV4dn5yymanHHt66pcbesZp0Jv-6enYgoEeFzukQEoOOApEM6JSvEsH_e-jlc4mQgULCh9XHOIHE2COTP3kU5VvpfqAqOnz3Ewz7oRJ35W44ZDB8rYbmxlqZY6E6eC97ZgIzN63rZVurQowVv5SWvz6kyIcjB6DdSACWsMIFvKEpy1FL0HZLY7bX4HN-Klj0RM4rYxMxHHvqT4NAWQibfdyGHsBroeAaIHMMYg0e7-2o8vR-eRNpO91it_E8bi8ee6UgSWJVbflYkyks7lNRKbkZW2ikauRmXiWeKKns-jhCCVGaojYCHHvSV8esblVmiU4vBjk7Dv26Q03oRFsaBOAOieJu18NVBNxq9jJnXue1GkH-0MVWdVt-VxY1OdqT5ouiaE5YpBM7OrIvfHkCTtRNnsD8oEUZpSNYzZDLDsESto0E65syIFzHC_u9fHk7rGrE0EXBRJ7oAYgjKfheCfJVqyAXe51gnaaweI9zg6aPrSU_G_fYIv6-emJJY2SB2VfKI9Dq6T1TMQ4Rj3-LtwJLIhFCmDy96KM29oyTVdI5KFvmxhSy6ybxRa9yvpkmf7fik6FTBKt9bdPm5QyEEuoSraIWgEzPrseuAaL_9M9BsMnLvz0fjkYlScU-GDnYqK4Yqi4GbzB24i39tw2Imd_KkChWHETBGm-rLK-oTFYIg3hiZMm2pBTR8Q6j740MgbzHFEA21YWzMGrluiU7_IrZoHoDP4jxV-KQ_ki9XI2e56CxKqUA_TGdQQw779mhkVT5FZcP6hssLFxE79bFEYEAc6FZuUaiUwOL7B6VIZIzHOMCqVJzZHZ04xaVVR5dskGChZYBGHIPQ_h3p2eM4HNLliQkf3vghTlIiG7jJWpZO6BFhEzRRrTdb7Q5B5rhYvWuwv_z7-ein7ftPoG9TJEh9pztyjU" charset="UTF-8"></script><link rel="stylesheet" crossorigin="anonymous" href="https://gc.kis.v2.scr.kaspersky-labs.com/E3E8934C-235A-4B0E-825A-35A08381A191/abn/main.css?attr=aHR0cHM6Ly9wcGwtYWktY29kZS1pbnRlcnByZXRlci1maWxlcy5zMy5hbWF6b25hd3MuY29tL2MwYTA1ZDJiLWUzNGUtNDgzYy1iMzI5LTJiZWU1ZWVmODM2OS9kY2U5ZTJlNS01ODFhLTQ0ZGUtODA4Mi1hZDMxMzY0YzA4MGIvaW5kZXguaHRtbD9yZXNwb25zZS1jb250ZW50LWRpc3Bvc2l0aW9uPWF0dGFjaG1lbnQlM2IlMjBmaWxlbmFtZSUzZGluZGV4Lmh0bWwlM2IlMjBmaWxlbmFtZSUyYSUzZFVURi04JTI3JTI3aW5kZXguaHRtbCZBV1NBY2Nlc3NLZXlJZD1BU0lBMkYzRU1FWUVUUlQzU1NFTCZTaWduYXR1cmU9UnlOQXRLdmtXaDBjdXRZSk5GUndrc2dCOWVrJTNkJngtYW16LXNlY3VyaXR5LXRva2VuPUlRb0piM0pwWjJsdVgyVmpFQ0lhQ1hWekxXVmhjM1F0TVNKSU1FWUNJUUM2WVllOXBGc2VLOGtTVE1FTk5zTTRMOUhQOG5WVDhXdmx5ZnpNQ2ozZ21RSWhBSWxuSUxBb2c1OGR4bm5GUlRHdHNWV3VmRGVXTlFHJTJmOHRkOTVQTTFGck9jS3Z3RUNPdiUyZiUyZiUyZiUyZiUyZiUyZiUyZiUyZiUyZiUyZndFUUFSb01Oams1TnpVek16QTVOekExSWd6enAlMmJOVUh4ZXJFeDFSQUVVcTBBUThGcEFTUTVlSjJMVWJwVzJJYU1aRUJYYXhQQ1RVZEhMeEhFQnNMalhRVVYwOW1KS0MydUprRUlWSjBYRTNKOHVjek5XMnl2Sjl4SUljcUdQc1p6dGtYVUIlMmZmbVQ4d2txMmlCSHpMdm9wVmNDJTJiM3EwQmpiR0pKUzRUJTJiQllRakJOUXR3RnNtaHQ2N0lOaGJzeVUlMmZtQjBMYkxnRFFMNkhFVDlyV1dSNlBFamNTOFh5YlY0c3o3S0V4b014N0lDM0JJeFY2NHUzaEFyelhtVVUySG5QVTNyU2tkWTRkRDk0S2ZVeWJrM3c4NWVIMG9ZNkR0aW0zZzdLN0s5RlZJWlpJWmZLQlRFTVZGRENJY1YwRDRJUzFZUEd4Z3Y3ZmR2QjEzMnh5Qk92MzMxa292UmRWbER4NkxyTXJiMmolMmJlZXVmbk92dG15MWp3R205cDNoaFBjJTJiVWQlMmZuR2oxNUt4NmJyMHBEUms1bk5Ia3dBTEZ5SGk0NkxmMm1rJTJiaEhXVWhzRDN4Tnl4JTJmRFI1JTJiejJ5M1RXUDFlYmFvY2hFYVgySGVLVmRCSHlGUDNkenh2V0xjclJNaWhtYUxQU2hxWlJOQVJPejFNS0RQVFZMYTlLWFZXR2RYODIyQUg2U0t0S016akxKREozM1IzVzI1SGo0WkRiQXFFWGVlU05kWVRTV2twcmJYSU5yU2EySFhqTHlraHAyenVvd29wcUFET0s0eGZvdTRoSlpVMDZKWXBDRkVVMXNaV3JwNlcwUWxYJTJibmRGSlJRYkRuYWpVYlNzMGVCQk5XcE5nZWU1MzFibXduVGVSMUNldW9GJTJiMTV5d3lndXJ5RDFYd2NselJhQktuODFoNmx1eUl5Zk1FUkdaSDN5THBGTlMlMmJJSkVqUE56TVFpYkNGbXdQRlFDMkJMZ1JUbnRDRm1SY0tkTEFSSjNERnVRdmR4SEFzS3RZRTVGU3AyTkhxbWJ6VEt3R2xFeGtYUnhmMXVXd1FCZUxzZ3NDZEFuM3JyZXNxQU9HcVZhJTJmTllYNnB1VnFwbGFBSlVEMktpTzJiZGJoSGdNTkRHNU0wR09wY0JJcVUxJTJicG94MkVFVjhwN3V0eG9RUjhIYzdvdXpmZXhhVUlBOHcwaTV1Q1NCTXlBaHNLNHpVYXY5ZlRLZzJta3VqREZlVFJGZUFTaDh2T0lWQ29ISVJ4STliM2VSVUlwNDdJUCUyYkR6JTJmaFdRbWNiMXNOJTJmRW10OFJsWU01a20xJTJmZmtnTXBQc3VuZlRsM2dSUFkxY3R5b1IlMmZtQXh6UjRvdWJ3YmNaR3hSOTlsJTJmU3NjdUolMmZYRDNJUURacTljSHNVUFRYMFBoT1FudWlFQSUzZCUzZCZFeHBpcmVzPTE3NzM3NDE1NzA"/><script type="text/javascript" src="https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=T34in_UGG0UO9IcF32wWREWD2OxstkhRO5-XvA30aJdnVIK2jKteM1X-nLHPEUWII1gScVGrzr8IP3jNnATKjZjg_S_WAMrLffi5voE_K-UVgZHpHmVnijmnANBdPEL_VhZ8F3eUpQp-D0MkeN90EY0yjuivq-cTQJ4EbM90c8OfgqJ9tlDiujSU7mTyDEmG1gGhAc286QxiumkT8zblJoEXwufwvLFxNDf3kxpFjszpr8d8oqwbOkD-quUUoUbVahClAiyvc7ukxXlu1dWF_2H5nbguuUnKy1XQ3c5uifiKBehPaNJ9VN9gX6fxMRRC6Ip3CP8r02yCq2DQG_JwI8ORp0sOaPMzgsLtcCXximfuXshjLbm-mBgnVKJReRVyntzNVJrWthsAkMAkkAbAu4gdWqNCEWy87v6o-0naa5HwZqpyB1YgOexb4amJ_qVvr_42rhL-XBvuRtWViYNcYc3v4xZ9NpcnlWrLN6DaoIhgjgTPblS6j86YlojWhEGdz84CuX7wxJ1n4vZOLfwK8mIRHgtBWYwWVfQ5saYixYKFfgqYVffGowkc73-0MzsjX-TglaG6pqJOBQlvf2Z_oMpRf1fshcjtVjjw_HVz0hFMmL_fpzAa5VxFjSm1bEjw4kZ9zFfVqOW4DfvQZkX6ya_PYyaQogwTHpSbzCSykHe3MTEnYwZKUaVm0DCnORL5vc9w6vk6YEMx5hs4EU8syJB0FreXkRpWXRVIXPRQI-MD3FrEI9cJeKs1TVa3-HfepgP6jGDT-ICDSoLHNw76EBkjpdy9Pqjr-cK3tMA3qHbQ4FahYhbwNZgu71xJCZ3lYuIE1dJdqNhYbmeh0LVlB9qiCBuOHmol0niB9y2iaUJCb8jMDbk-knTobVoDb-qTc2Ly52tzn12mH97R22lvJFm2GT9b0HYqjdyyxu1BdqPUWaszaoV_FFhQci2ikmEDYn_a7ACiqRQso9PGmJaPXUR5DPjX1SYhun450dgQq4L7MKe1HyUF4nS5kOvbwwT90yh-9JtUFcJP7TcgKcJm-OJ7Ns9u6I_bzgE0KWtxFyTzvtXbennUuQNKVZOU7Dfls71y5CJdYKwJAtUC-CehXdaR1wGcDESU27VLt636eW6kSAb3RnbovG4uSYeFc5HPXau12ois1LPqqNVC8K0Ts66Su1Jsn7q9dlh9jTvDTDdexlndCP_K5bBVcd_AHm-Ewmyv9qo30TsTSHuX1QefKbOc2eiHMhzuP5wZtB-GGZZthyAYhNKpJ_XvQ2gfhVFeJz9DIx4VNOsX7JdbVwlfPXc9qgwLTWwuUlpCEENu59xVEq-tSOGThT1BBbwLcP8YX6IRgn1-0Ja0EpbgKfMearbXnJuoierMlKcUWLgGnSTOrnFfmImi9VZRdZcrPsPNhPq0Bk6oj8ZmqObtaylok5NnN5GEVJc_GfYwednZYEcR8WC0rHh8aIzauC680vFuhL0e1zkKA3gf3PKc569mcTZtvEVLMcpkxdi4DKcdVCFcTcQMcc6KJ0w55Bnjj4_1B0rMtOASDm8FwGNWuQ_M6_6JEIJVH65GsgM1J6pe0PMq8ISWD3bSATVAhNdrncnpwoRJ4pXO7gtGlep_K7h9w-jq4I3kcXEa3KY2l95CFuK7Ro0d5MX2vHrcCr8tsI7RAVCrRos4rXutf14UY_PDus1hYOcgLfdVvYxP2tY3yO83oV0Mf2vAmjojHDCx8kxd7fnzTE4yNaX9pOJodSF7QLzS8_Jh9tqAka44OE8LuRL7zqhZ48duTCP5E1PkfzaOcsXfEfO1x92cowBJo4tBdMBNSNGIZNbtuGo7ent7HiEW0xvn9F6MPwEIGyJOeplIe4oEBgdh-8UhIWR761smYpThzutvCs0QUlYKdVdIvhzddeaO7aa0nSEOnCMCPLgJ5HfRqurC50f8_4Q--IIAH7UzsMMKJraQ2kMJWambyZmJREiv1Jn4a-j6rca_IwHfbPBjvjTfI1yOED5DlvhE3NkzQLwTtEQ-v0C3vf55W2e9-Y0331bhWAk8ZbJT_cRB-rBZCSq4FElW4XkjycSe7gWFfpPnlykauOaQYzXknECDyKG-fowEdswUGv7MaUaFKQyFrduvFe8UxYuq5CUSZaxkBz5QID0_GJWFgheN2pmwNio5LGMxHrrhTIqEYouqgBY2Xqo7B6mF1F3Q2fjDZUEWLtop7ScB-M5AbuUBkaYwLOFu2Y96wr4Bjk7b1tyFyru3yfDVbYyIMp-Xntd44w" charset="UTF-8"></script><link rel="stylesheet" crossorigin="anonymous" href="https://gc.kis.v2.scr.kaspersky-labs.com/E3E8934C-235A-4B0E-825A-35A08381A191/abn/main.css?attr=aHR0cHM6Ly9wcGwtYWktY29kZS1pbnRlcnByZXRlci1maWxlcy5zMy5hbWF6b25hd3MuY29tLzUyODkzNzMwLTM3NjYtNDFiNC04OGQ5LTQwNWJhZjA2N2FmMS9mOTQzZTYxOS1hY2E2LTQ5YmQtYTlkNy1iMmUxZjczNTcwODUvaW5kZXguaHRtbD9yZXNwb25zZS1jb250ZW50LWRpc3Bvc2l0aW9uPWF0dGFjaG1lbnQlM2IlMjBmaWxlbmFtZSUzZGluZGV4Lmh0bWwlM2IlMjBmaWxlbmFtZSUyYSUzZFVURi04JTI3JTI3aW5kZXguaHRtbCZBV1NBY2Nlc3NLZXlJZD1BU0lBMkYzRU1FWUVSVTNRTzJDUyZTaWduYXR1cmU9dURPaCUyZlRSS3NqNEZHS3lLaTN4bnc1dkNCU1UlM2QmeC1hbXotc2VjdXJpdHktdG9rZW49SVFvSmIzSnBaMmx1WDJWakVCUWFDWFZ6TFdWaGMzUXRNU0pITUVVQ0lRQ1h1VmNGYWY1dUNoRWkySWVzM21ueDczbUp3aiUyYnprMElqUVJyeXVIa1JOZ0lnUk83QmIwZW85MTVBV0JXY1hsUTl3S0I5Y25STFhnbXFoWnRPMTdSdFVad3ElMmZBUUkzZiUyZiUyZiUyZiUyZiUyZiUyZiUyZiUyZiUyZiUyZkFSQUJHZ3cyT1RrM05UTXpNRGszTURVaURDdkpqdkJrZ0FyWUxiZm9NQ3JRQkRtJTJmU3VjcjFoUEREZEZYSWs0bFJIaHZBZHQ0OFFDbEc2R2RJc3A2MUU4U3V0R0xtTkNSVTNBbk9ja0R4ckYlMmZTJTJiNng0T0RwbEg5SGNuSDZmZlRzYWo1M2xGMDQ5d3k0ckJFZm5QJTJiRDBjdTBlYUxCa1BuNDI4bW5NVEpmSW0zJTJmVThwT25vSkRUOWdXMXVsRDAwZ3Z3S0FZTUlxUmk0RVQ3T0c0WnFDS1dHam9DNCUyZmsxc09oTzhzWFpoSHVpTUpFQ2tadyUyYndJRiUyZjclMmJ4WkRvT1ZZdFN6bDFqdHNUb3JTdE5OY1JWdGNQSTlEUlclMmJ6a1JNejJ5RmpEeGslMmJIbkxueXQlMmJyeDVCdSUyYjBGZU1JTTdSdVI3Y0F4clI0SGZIJTJiQTYzVldTZ3FCUk5UQ09WSmpZVU44SnVGZjFwJTJiTFQ2MURVaiUyZm82bmNXaTdhRjJtbktMaDRpb0JOa24wWkZuY3k4ajdoUzJkU3pxSDZaTm95Y3JVbnkzbTVYVEVpdlNnaEd4JTJmOWFWck51UVhUaU1oaTVoM3N4VFhwT0JBRTlGdUd3bUlIRURucVZlYjFPNyUyZjNEVXRrT1FsZ0QzOWxjcWlBazJWNk5ZN0J5WkdZSEtaYW90MmpIU29vTDNMRTdlbVBqRVNhN0NpbkZBamltQnJMVEYzd0Y4d2gwWlpsOWp0NkRiVFpVaDJ6bnVQNngyckVMcjBnZSUyZjJPc3FjNXNhbTVjQmhVbEVIZExGcCUyYjhWTmFid3lKbjAybzVJaHRvWGh1aFl0RmZ6ZUwlMmJweUs0MkYyMjVNOVJhWXB3akFvMU1tS1ZQYTglMmJPeXhDbU5TS205VEpUUDRndmVoSlhwdzBUSHJGdDM4dlk1VFc1QzdZMUU5WGNGNSUyYk95M1ZLa1ZxZiUyZjJkdiUyYk45Z2hUTDhDQ3RoOUJBdDFtZlQlMmJDR0tMNEVyenhSOFBacnVTaG1qMzVyYlVJckN0d2p5Z3FuVE12ajN1TFRyZm15VGNvc09CWnF3N2xLTzFnazQ3bFEweGF4TTBYbGIyWXNINTVEcUNxUGM2M3RiJTJmU3NYdEFVeDB3MXJmaHpRWTZtQUgwRW96bHNVaVVYVW5nbSUyZjdqNE5aJTJmaFA2YlBlRTdRRDVEYXhQWmFFa3E3RzhvbWYzdTNXa2laaFl3ZXhhVjdZM21xWnZUS01oYkh5ckVoRFJDNmFDMW1JTVk1MHRPN29yaW00QWlpcG1tTDE5NyUyYk9kUUFxc3dLZ29BdFJucyUyZnNKaiUyZk5iWVZMJTJiUFBhdUtSJTJiVW41RkU3UzhiVTdSaSUyZlA4NiUyZmhmblRwJTJiVTllTCUyZmdkRHA5QllNdXZ3c0FtSzJ6Z2hOaVVvTGhRVDI3RHclM2QlM2QmRXhwaXJlcz0xNzczNjkwNTUw"/><style>
+    /* === DESIGN TOKENS ================================================== */
+    :root {
+      --text-xs:   clamp(0.75rem,  0.7rem  + 0.25vw, 0.875rem);
+      --text-sm:   clamp(0.875rem, 0.8rem  + 0.35vw, 1rem);
+      --text-base: clamp(1rem,     0.95rem + 0.25vw, 1.125rem);
+      --text-lg:   clamp(1.125rem, 1rem    + 0.75vw, 1.5rem);
+      --text-xl:   clamp(1.5rem,   1.2rem  + 1.25vw, 2.25rem);
+      --space-1:0.25rem;--space-2:0.5rem;--space-3:0.75rem;--space-4:1rem;
+      --space-5:1.25rem;--space-6:1.5rem;--space-8:2rem;--space-10:2.5rem;
+      --radius-sm:0.375rem;--radius-md:0.5rem;--radius-lg:0.75rem;--radius-full:9999px;
+      --transition-interactive:180ms cubic-bezier(0.16,1,0.3,1);
+      --color-bg:#0d0d14;--color-surface:#12121c;--color-surface-2:#16162a;
+      --color-surface-offset:#1a1a2e;--color-surface-dynamic:#1f1f38;
+      --color-divider:#23233a;--color-border:#2e2e50;
+      --color-text:#e8e6f4;--color-text-muted:#8a88a0;--color-text-faint:#4a4860;
+      --color-primary:#7c6aff;--color-primary-hover:#9d8fff;--color-primary-active:#b8aeff;
+      --color-primary-dim:rgba(124,106,255,0.15);--color-primary-glow:rgba(124,106,255,0.35);
+      --color-hit:#4caf50;--color-hit-glow:rgba(76,175,80,0.45);--color-hit-dim:rgba(76,175,80,0.20);
+      --color-near:#ffc107;--color-near-glow:rgba(255,193,7,0.40);
+      --color-note-default:#3d4a8a;--color-note-border:#5060b0;
+      --color-error:#f44336;
+      --shadow-sm:0 1px 3px rgba(0,0,0,0.4);--shadow-md:0 4px 12px rgba(0,0,0,0.5);
+      --shadow-lg:0 12px 32px rgba(0,0,0,0.6);
+    }
+
+    /* === BASE RESET ====================================================== */
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
+      text-rendering:optimizeLegibility;overflow:hidden}
+    body{height:100dvh;overflow:hidden;font-family:'Segoe UI',system-ui,sans-serif;
+      font-size:var(--text-sm);color:var(--color-text);background:var(--color-bg);
+      display:flex;flex-direction:column;user-select:none}
+    button{cursor:pointer;background:none;border:none;font:inherit;color:inherit;
+      transition:all var(--transition-interactive)}
+    input[type=range]{cursor:pointer}
+    ::selection{background:var(--color-primary-dim)}
+
+    /* === LOAD SCREEN ===================================================== */
+    #loadScreen{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;
+      align-items:center;justify-content:center;background:var(--color-bg);
+      padding:var(--space-8);gap:var(--space-6)}
+    #loadScreen.hidden{display:none}
+    .load-title{text-align:center}
+    .load-title h1{font-size:var(--text-xl);font-weight:700;letter-spacing:-0.02em;
+      background:linear-gradient(135deg,var(--color-primary) 0%,#b06fff 50%,#ff6bde 100%);
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+      margin-bottom:var(--space-2)}
+    .load-title p{color:var(--color-text-muted);font-size:var(--text-sm);max-width:48ch}
+
+    .song-name-row{display:flex;align-items:center;gap:var(--space-3);
+      background:var(--color-surface);border:1.5px solid var(--color-border);
+      border-radius:var(--radius-lg);padding:var(--space-3) var(--space-4);
+      width:100%;max-width:580px}
+    .song-name-row label{font-size:var(--text-xs);color:var(--color-text-muted);
+      white-space:nowrap;font-weight:600}
+    .song-name-row input[type=text]{flex:1;background:transparent;border:none;
+      outline:none;font:inherit;font-size:var(--text-sm);color:var(--color-text)}
+    .song-name-row input[type=text]::placeholder{color:var(--color-text-faint)}
+
+    .drop-zones{display:flex;gap:var(--space-6);flex-wrap:wrap;justify-content:center}
+    .drop-zone{width:260px;min-height:160px;border:2px dashed var(--color-border);
+      border-radius:var(--radius-lg);background:var(--color-surface);
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      gap:var(--space-3);padding:var(--space-5);cursor:pointer;
+      transition:all var(--transition-interactive);position:relative;overflow:hidden}
+    .drop-zone:hover,.drop-zone.drag-over{border-color:var(--color-primary);
+      background:var(--color-surface-2);
+      box-shadow:0 0 0 4px var(--color-primary-dim),var(--shadow-md)}
+    .drop-zone.loaded{border-color:var(--color-hit);
+      background:color-mix(in srgb,var(--color-hit) 6%,var(--color-surface))}
+    .drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer}
+    .drop-zone-icon{width:44px;height:44px;border-radius:var(--radius-md);
+      background:var(--color-surface-offset);display:flex;align-items:center;
+      justify-content:center;color:var(--color-primary)}
+    .drop-zone-label{font-weight:600;text-align:center;font-size:var(--text-sm)}
+    .drop-zone-sub{font-size:var(--text-xs);color:var(--color-text-muted);text-align:center}
+    .drop-zone-files{font-size:var(--text-xs);color:var(--color-hit);text-align:center;
+      margin-top:var(--space-1)}
+
+    .karaoke-zone{width:100%;max-width:580px;border:2px dashed var(--color-border);
+      border-radius:var(--radius-lg);background:var(--color-surface);
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      gap:var(--space-2);padding:var(--space-4) var(--space-5);cursor:pointer;
+      transition:all var(--transition-interactive);position:relative;text-align:center}
+    .karaoke-zone:hover,.karaoke-zone.drag-over{border-color:var(--color-primary);
+      background:var(--color-surface-2);box-shadow:0 0 0 4px var(--color-primary-dim)}
+    .karaoke-zone.loaded{border-color:var(--color-hit);
+      background:color-mix(in srgb,var(--color-hit) 6%,var(--color-surface))}
+    .karaoke-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer}
+    .karaoke-zone-label{font-weight:600;font-size:var(--text-sm)}
+    .karaoke-zone-sub{font-size:var(--text-xs);color:var(--color-text-muted)}
+    .karaoke-zone-file{font-size:var(--text-xs);color:var(--color-hit);margin-top:2px}
+
+    .load-divider{display:flex;align-items:center;gap:var(--space-3);
+      width:100%;max-width:580px;color:var(--color-text-faint);font-size:var(--text-xs)}
+    .load-divider::before,.load-divider::after{content:'';flex:1;height:1px;
+      background:var(--color-divider)}
+
+    .lyrics-row{width:100%;max-width:580px;display:flex;flex-direction:column;gap:var(--space-2)}
+    .lyrics-row label{font-size:var(--text-xs);color:var(--color-text-muted);font-weight:600}
+    .lyrics-row textarea{background:var(--color-surface);border:1.5px solid var(--color-border);
+      border-radius:var(--radius-md);padding:var(--space-3);font:inherit;
+      font-size:var(--text-sm);color:var(--color-text);resize:vertical;min-height:64px;
+      line-height:1.5;outline:none;transition:border-color var(--transition-interactive)}
+    .lyrics-row textarea::placeholder{color:var(--color-text-faint)}
+    .lyrics-row textarea:focus{border-color:var(--color-primary)}
+
+    .load-actions{display:flex;gap:var(--space-4);align-items:center;flex-direction:column}
+    .btn-primary{padding:var(--space-3) var(--space-8);border-radius:var(--radius-full);
+      background:var(--color-primary);color:#fff;font-weight:700;font-size:var(--text-base);
+      letter-spacing:0.02em;box-shadow:0 4px 16px var(--color-primary-glow);
+      transition:all var(--transition-interactive)}
+    .btn-primary:hover:not(:disabled){background:var(--color-primary-hover);
+      box-shadow:0 6px 24px var(--color-primary-glow);transform:translateY(-1px)}
+    .btn-primary:disabled{opacity:0.4;cursor:not-allowed;transform:none}
+    .btn-secondary{padding:var(--space-2) var(--space-5);border-radius:var(--radius-full);
+      border:1.5px solid var(--color-border);background:transparent;
+      color:var(--color-text-muted);font-weight:500;
+      transition:all var(--transition-interactive)}
+    .btn-secondary:hover{border-color:var(--color-primary);color:var(--color-primary)}
+    .btn-secondary.active{border-color:var(--color-primary);color:var(--color-primary);
+      background:var(--color-primary-dim)}
+    .device-row{display:flex;gap:var(--space-4);flex-wrap:wrap;width:100%;max-width:580px}
+    .device-group{display:flex;flex-direction:column;gap:4px;flex:1;min-width:200px}
+    .device-group label{font-size:var(--text-xs);color:var(--color-text-muted)}
+    .device-select{background:var(--color-surface);color:var(--color-text);
+      border:1px solid var(--color-border);border-radius:6px;padding:6px 10px;
+      font-size:var(--text-xs);width:100%;cursor:pointer}
+    .device-select:hover{border-color:var(--color-primary)}
+    .load-hint{font-size:var(--text-xs);color:var(--color-text-faint)}
+
+    /* === APP SHELL ======================================================= */
+    #appShell{display:flex;flex-direction:column;height:100dvh;overflow:hidden}
+    #appShell.hidden{display:none}
+
+    /* === TOP BAR ========================================================= */
+    #topBar{flex:0 0 auto;display:flex;align-items:center;gap:var(--space-4);
+      padding:var(--space-2) var(--space-4);background:var(--color-surface);
+      border-bottom:1px solid var(--color-divider);min-height:44px;flex-wrap:wrap}
+    .top-song-info{display:flex;flex-direction:column;min-width:0;flex:1}
+    .top-song-title{font-weight:600;font-size:var(--text-sm);
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .top-song-meta{font-size:var(--text-xs);color:var(--color-text-muted)}
+    .top-stat{display:flex;flex-direction:column;align-items:center;min-width:60px}
+    .top-stat-label{font-size:var(--text-xs);color:var(--color-text-muted)}
+    .top-stat-value{font-size:var(--text-sm);font-weight:700}
+    #micVolumeMeter{width:80px;height:6px;background:var(--color-surface-offset);
+      border-radius:var(--radius-full);overflow:hidden}
+    #micVolumeFill{height:100%;width:0%;
+      background:linear-gradient(90deg,var(--color-hit),var(--color-near));
+      border-radius:var(--radius-full);transition:width 60ms linear}
+    .meter-wrap{display:flex;flex-direction:column;align-items:center;gap:2px}
+    .meter-wrap label{font-size:var(--text-xs);color:var(--color-text-muted)}
+    /* "Back to load" button — was inline style; now a class */
+    .btn-back{white-space:nowrap;font-size:var(--text-xs)}
+
+    /* === MAIN AREA (canvas + lyrics) ===================================== */
+    #mainArea{flex:1 1 0;min-height:0;display:flex;overflow:hidden}
+    #canvasWrap{flex:1 1 0;min-width:0;position:relative;background:var(--color-bg)}
+    #noteCanvas{display:block;width:100%;height:100%}
+
+    /* === LYRICS PANEL ==================================================== */
+    #lyricsPanel{position:relative;flex:0 0 220px;min-width:120px;max-width:520px;
+      background:var(--color-surface);border-left:1px solid var(--color-divider);
+      display:flex;flex-direction:column;overflow:hidden}
+    #lyricsPanel.hidden{display:none}
+    #lyricsDragHandle{position:absolute;left:0;top:0;bottom:0;width:6px;
+      cursor:col-resize;z-index:10;background:transparent;transition:background 120ms}
+    #lyricsDragHandle:hover,#lyricsDragHandle.dragging{background:var(--color-primary-dim)}
+    .lyrics-header{padding:var(--space-2) var(--space-3);
+      border-bottom:1px solid var(--color-divider);
+      font-size:var(--text-xs);font-weight:700;color:var(--color-text-muted);
+      text-transform:uppercase;letter-spacing:0.08em;
+      display:flex;align-items:center;justify-content:space-between;gap:var(--space-2)}
+    .lyrics-header-btns{display:flex;gap:var(--space-1);align-items:center}
+    .lyrics-font-btn{font-size:11px;padding:1px 5px;border-radius:var(--radius-sm);
+      background:var(--color-surface-offset);border:1px solid var(--color-border);
+      color:var(--color-text-muted);cursor:pointer;line-height:1.4;
+      transition:all var(--transition-interactive)}
+    .lyrics-font-btn:hover{border-color:var(--color-primary);color:var(--color-primary)}
+    /* Icon buttons in lyrics header — were inline style */
+    .lyrics-icon-btn{font-size:var(--text-xs);color:var(--color-text-muted)}
+    #lyricsList{flex:1;overflow-y:auto;padding:var(--space-2)}
+    .lyric-line{padding:3px var(--space-3);border-radius:var(--radius-sm);
+      line-height:1.35;color:var(--color-text-muted)}
+    /* NOTE: All three states intentionally use the same colour right now.
+       Kept as separate rules so they can be individually styled later. */
+    .lyric-line.upcoming{color:var(--color-text-muted)}
+    .lyric-line.active{color:var(--color-text-muted)}
+    .lyric-line.past{color:var(--color-text-muted)}
+
+    /* === LYRICS EDIT OVERLAY ============================================= */
+    #lyricsEditOverlay{position:fixed;inset:0;z-index:210;
+      background:rgba(0,0,0,0.85);backdrop-filter:blur(12px);
+      display:flex;align-items:center;justify-content:center;padding:var(--space-6)}
+    #lyricsEditOverlay.hidden{display:none}
+    .lyrics-edit-card{background:var(--color-surface);border:1px solid var(--color-border);
+      border-radius:var(--radius-lg);padding:var(--space-6);
+      width:100%;max-width:560px;display:flex;flex-direction:column;gap:var(--space-4);
+      box-shadow:var(--shadow-lg)}
+    .lyrics-edit-title{font-size:var(--text-lg);font-weight:700}
+    .lyrics-edit-desc{font-size:var(--text-xs);color:var(--color-text-muted);line-height:1.6}
+    #lyricsEditList{display:flex;flex-direction:column;gap:var(--space-2);
+      max-height:380px;overflow-y:auto}
+    .lyric-edit-row{display:flex;align-items:center;gap:var(--space-3);
+      padding:var(--space-2);background:var(--color-surface-offset);
+      border-radius:var(--radius-sm)}
+    .lyric-edit-note{font-size:var(--text-xs);color:var(--color-primary);
+      min-width:36px;font-weight:600}
+    .lyric-edit-time{font-size:var(--text-xs);color:var(--color-text-faint);min-width:44px}
+    .lyric-edit-input{flex:1;background:transparent;border:none;outline:none;
+      font:inherit;font-size:var(--text-sm);color:var(--color-text)}
+    .lyric-edit-input:focus{background:var(--color-surface-2);
+      border-radius:var(--radius-sm);padding:2px 4px}
+    /* Row at bottom of lyrics edit — was inline style */
+    .lyrics-edit-actions{display:flex;gap:var(--space-4);justify-content:flex-end}
+
+    /* === OVERVIEW STRIP ================================================== */
+    #overviewStrip{flex:0 0 auto;background:var(--color-surface);
+      border-top:1px solid var(--color-divider)}
+    #overviewCanvas{display:block;width:100%;height:44px;cursor:pointer}
+
+    /* === BOTTOM BAR ====================================================== */
+    #bottomBar{flex:0 0 auto;background:var(--color-surface);
+      border-top:1px solid var(--color-divider);
+      padding:var(--space-2) var(--space-4);
+      display:flex;align-items:center;gap:var(--space-4);flex-wrap:wrap}
+    .transport-btns{display:flex;gap:var(--space-2);align-items:center}
+    .btn-transport{width:36px;height:36px;border-radius:50%;
+      background:var(--color-surface-offset);
+      display:flex;align-items:center;justify-content:center;
+      transition:all var(--transition-interactive);color:var(--color-text)}
+    .btn-transport:hover{background:var(--color-primary);color:#fff}
+    .btn-transport.active{background:var(--color-primary);color:#fff}
+    .btn-transport.danger:hover{background:var(--color-error);color:#fff}
+    .btn-transport svg{pointer-events:none}
+    .bottom-controls{display:flex;gap:var(--space-5);align-items:center;flex:1;flex-wrap:wrap}
+    .ctrl-group{display:flex;align-items:center;gap:var(--space-2)}
+    .ctrl-label{font-size:var(--text-xs);color:var(--color-text-muted);white-space:nowrap}
+    input[type=range]{-webkit-appearance:none;appearance:none;height:4px;
+      border-radius:var(--radius-full);background:var(--color-surface-dynamic);outline:none}
+    input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
+      width:14px;height:14px;border-radius:50%;background:var(--color-primary);
+      cursor:pointer;box-shadow:0 0 0 3px var(--color-primary-dim)}
+    input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;
+      background:var(--color-primary);cursor:pointer;border:none}
+    #volumeSlider{width:80px}
+    #micSensSlider{width:80px}
+    #transposeSlider{width:80px}
+    .mode-toggle{display:flex;border-radius:var(--radius-full);overflow:hidden;
+      border:1px solid var(--color-border)}
+    .mode-btn{padding:var(--space-1) var(--space-3);font-size:var(--text-xs);font-weight:600;
+      background:transparent;color:var(--color-text-muted);
+      transition:all var(--transition-interactive)}
+    .mode-btn.active{background:var(--color-primary);color:#fff}
+    #transposeValue{font-size:var(--text-xs);font-weight:700;min-width:28px;
+      text-align:center;color:var(--color-primary)}
+    /* Bottom bar small-text buttons — were all inline style="font-size:var(--text-xs)" */
+    .btn-sm{font-size:var(--text-xs)}
+    /* Metronome */
+    .metronome-group{display:flex;align-items:center;gap:var(--space-1)}
+    #bpmInput{width:52px;background:var(--color-surface);border:1.5px solid var(--color-border);
+      border-radius:var(--radius-sm);color:var(--color-text);font:inherit;
+      font-size:var(--text-xs);text-align:center;padding:2px 4px;
+      transition:border-color var(--transition-interactive)}
+    #bpmInput:focus{outline:none;border-color:var(--color-primary)}
+    #bpmInput::-webkit-inner-spin-button,#bpmInput::-webkit-outer-spin-button{opacity:0.4}
+
+    /* === COUNTDOWN OVERLAY =============================================== */
+    #countdownOverlay{position:fixed;inset:0;z-index:150;
+      display:flex;align-items:center;justify-content:center;
+      pointer-events:none;background:transparent}
+    #countdownOverlay.hidden{display:none}
+    #countdownNum{font-size:clamp(6rem,16vw,10rem);font-weight:900;
+      letter-spacing:-0.05em;
+      background:linear-gradient(135deg,var(--color-primary),#ff6bde);
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+      background-clip:text;
+      animation:countPulse 0.8s ease-out forwards}
+    @keyframes countPulse{
+      0%{transform:scale(1.4);opacity:0}
+      30%{transform:scale(1);opacity:1}
+      80%{transform:scale(1);opacity:1}
+      100%{transform:scale(0.8);opacity:0}
+    }
+
+    /* === END-OF-MIDI DIALOG ============================================== */
+    #endMidiDialog{position:fixed;inset:0;z-index:190;
+      background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);
+      display:flex;align-items:center;justify-content:center;padding:var(--space-6)}
+    #endMidiDialog.hidden{display:none}
+    .dialog-card{background:var(--color-surface);border:1px solid var(--color-border);
+      border-radius:var(--radius-lg);padding:var(--space-8);
+      max-width:360px;width:100%;text-align:center;
+      display:flex;flex-direction:column;align-items:center;gap:var(--space-5);
+      box-shadow:var(--shadow-lg)}
+    .dialog-icon{font-size:2.5rem;line-height:1}
+    .dialog-title{font-size:var(--text-lg);font-weight:700}
+    .dialog-sub{font-size:var(--text-xs);color:var(--color-text-muted)}
+    .dialog-actions{display:flex;gap:var(--space-4);flex-wrap:wrap;justify-content:center}
+
+    /* === RESULTS OVERLAY ================================================= */
+    #resultsOverlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.82);
+      backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:center;
+      padding:var(--space-6)}
+    #resultsOverlay.hidden{display:none}
+    .results-card{background:var(--color-surface);border:1px solid var(--color-border);
+      border-radius:var(--radius-lg);padding:var(--space-8);
+      max-width:500px;width:100%;display:flex;flex-direction:column;align-items:center;
+      gap:var(--space-5);box-shadow:var(--shadow-lg)}
+    .results-song{font-size:var(--text-sm);color:var(--color-text-muted);font-style:italic}
+    .results-title{font-size:var(--text-xl);font-weight:800;letter-spacing:-0.02em}
+    .results-accuracy{font-size:clamp(3rem,8vw,5rem);font-weight:900;letter-spacing:-0.04em;
+      background:linear-gradient(135deg,var(--color-hit),var(--color-primary));
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .results-stars{font-size:2.5rem;letter-spacing:0.1em}
+    #resultsChart{width:100%}
+    .results-bar-row{display:flex;align-items:center;gap:var(--space-3);margin-bottom:var(--space-2)}
+    .results-bar-label{width:50px;font-size:var(--text-xs);color:var(--color-text-muted)}
+    .results-bar-track{flex:1;height:20px;background:var(--color-surface-offset);
+      border-radius:var(--radius-sm);overflow:hidden}
+    .results-bar-fill{height:100%;border-radius:var(--radius-sm);
+      transition:width 600ms cubic-bezier(0.16,1,0.3,1)}
+    /* Verdict colours applied via JS className so they stay in CSS here */
+    .bar-fill-hit{background:var(--color-hit)}
+    .bar-fill-near{background:var(--color-near)}
+    .bar-fill-miss{background:var(--color-text-faint)}
+    .results-bar-count{width:32px;font-size:var(--text-xs);color:var(--color-text-muted);text-align:right}
+    .results-actions{display:flex;gap:var(--space-3);flex-wrap:wrap;justify-content:center}
+
+    /* === STATUS TOAST ==================================================== */
+    #statusToast{position:fixed;bottom:var(--space-8);left:50%;transform:translateX(-50%);
+      background:var(--color-surface-offset);border:1px solid var(--color-border);
+      border-radius:var(--radius-full);padding:var(--space-2) var(--space-5);
+      font-size:var(--text-xs);color:var(--color-text-muted);pointer-events:none;
+      opacity:0;transition:opacity 300ms;z-index:300;white-space:nowrap}
+    #statusToast.visible{opacity:1}
+
+    /* === RECORDING INDICATOR ============================================= */
+    #recIndicator{display:flex;align-items:center;gap:var(--space-2);
+      font-size:var(--text-xs);color:#f44336;font-weight:700}
+    #recIndicator.hidden{display:none}
+    .rec-dot{width:8px;height:8px;border-radius:50%;background:#f44336;
+      animation:recBlink 1s ease-in-out infinite}
+    @keyframes recBlink{0%,100%{opacity:1}50%{opacity:0.2}}
+
+    /* === HELP MODAL ====================================================== */
+    #helpModal{position:fixed;inset:0;z-index:250;
+      background:rgba(0,0,0,0.8);backdrop-filter:blur(10px);
+      display:flex;align-items:center;justify-content:center;padding:var(--space-6)}
+    #helpModal.hidden{display:none}
+    .help-card{background:var(--color-surface);border:1px solid var(--color-border);
+      border-radius:var(--radius-lg);padding:var(--space-6);
+      max-width:460px;width:100%;box-shadow:var(--shadow-lg)}
+    .help-title{font-size:var(--text-lg);font-weight:700;margin-bottom:var(--space-4);
+      display:flex;align-items:center;justify-content:space-between}
+    .help-close{font-size:1.2rem;color:var(--color-text-muted);cursor:pointer;
+      transition:color var(--transition-interactive)}
+    .help-close:hover{color:var(--color-text)}
+    .help-table{width:100%;border-collapse:collapse}
+    .help-table tr{border-bottom:1px solid var(--color-divider)}
+    .help-table tr:last-child{border-bottom:none}
+    .help-table td{padding:var(--space-2) var(--space-3);font-size:var(--text-sm)}
+    .help-table td:first-child{width:38%;font-weight:700;color:var(--color-primary)}
+    .help-kbd{display:inline-block;background:var(--color-surface-offset);
+      border:1px solid var(--color-border);border-radius:4px;
+      padding:1px 7px;font-family:monospace;font-size:var(--text-xs)}
+
+    /* === SAVE PROGRESS OVERLAY =========================================== */
+    #saveProgressOverlay{position:fixed;inset:0;z-index:400;background:rgba(13,13,20,0.85);
+      backdrop-filter:blur(8px);display:flex;flex-direction:column;align-items:center;
+      justify-content:center;gap:var(--space-4)}
+    #saveProgressOverlay.hidden{display:none}
+    #saveProgressBar{width:280px;height:6px;background:var(--color-surface-offset);
+      border-radius:3px;overflow:hidden}
+    #saveProgressFill{height:100%;width:0%;background:var(--color-primary);
+      border-radius:3px;transition:width 120ms linear}
+    #saveProgressLabel{font-size:var(--text-xs);color:var(--color-text-muted)}
+
+    /* === SCROLLBARS ====================================================== */
+    ::-webkit-scrollbar{width:6px;height:6px}
+    ::-webkit-scrollbar-track{background:var(--color-surface)}
+    ::-webkit-scrollbar-thumb{background:var(--color-border);border-radius:3px}
+
+    /* === ATTRIBUTION ===================================================== */
+    #pplxAttr{position:fixed;bottom:var(--space-2);right:var(--space-3);
+      font-size:var(--text-xs);color:var(--color-text-faint);z-index:10}
+    #pplxAttr a{color:inherit;text-decoration:none}
+    #pplxAttr a:hover{color:var(--color-primary)}
+
+    /* === PLAY/PAUSE ICON VISIBILITY ====================================== */
+    /* #pauseIcon initial state set via inline style on the element — managed by updatePlayButton() */
+
+    /* === LANGUAGE SWITCHER =============================================== */
+    .lang-switcher{display:flex;gap:4px;align-items:center}
+    .lang-btn{padding:2px 8px;border-radius:var(--radius-full);font-size:var(--text-xs);
+      font-weight:700;border:1.5px solid var(--color-border);color:var(--color-text-muted);
+      background:transparent;cursor:pointer;transition:all var(--transition-interactive);
+      letter-spacing:0.04em}
+    .lang-btn:hover{border-color:var(--color-primary);color:var(--color-primary)}
+    .lang-btn.active{border-color:var(--color-primary);color:#fff;
+      background:var(--color-primary)}
+
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════
+     LOAD SCREEN
+     ═══════════════════════════════════════════════════════ -->
+<div id="loadScreen">
+  <div class="load-title">
+    <div class="lang-switcher">
+      <button class="lang-btn active" data-lang="en">EN</button>
+      <button class="lang-btn" data-lang="ru">RU</button>
+      <button class="lang-btn" data-lang="zh">ZH</button>
+    </div>
+    <h1 data-i18n="appTitle">Vocal Trainer</h1>
+    <p data-i18n="appSubtitle">Load a backing track and a vocal-melody MIDI — then sing in real time!</p>
+  </div>
+
+  <div class="song-name-row">
+    <label data-i18n="labelSongName">🎵 Song name</label>
+    <input type="text" id="songNameInput" data-i18n-placeholder="placeholderSong" placeholder="Enter song name for saving the recording">
+  </div>
+
+  <div class="karaoke-zone" id="karaokeZone">
+    <input type="file" id="karaokeFileInput" accept=".vkt">
+    <div>📦</div>
+    <div class="karaoke-zone-label" data-i18n="karaokeZoneLabel">Open saved session (.vkt)</div>
+    <div class="karaoke-zone-sub" data-i18n="karaokeZoneSub">Drag file here or click to select</div>
+    <div class="karaoke-zone-file" id="karaokeFileName"></div>
+  </div>
+  <div class="load-divider" data-i18n="loadDivider">or load files manually</div>
+
+  <div class="drop-zones">
+    <div class="drop-zone" id="audioDropZone">
+      <input type="file" id="audioFileInput" accept=".wav,.mp3,audio/wav,audio/mpeg" multiple>
+      <div class="drop-zone-icon">
+        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+        </svg>
+      </div>
+      <div class="drop-zone-label" data-i18n="dropAudioLabel">Audio backing track</div>
+      <div class="drop-zone-sub" data-i18n="dropAudioSub">WAV / MP3 — multiple files supported</div>
+      <div class="drop-zone-files" id="audioFilesList" data-i18n="dropAudioEmpty">No files loaded</div>
+    </div>
+    <div class="drop-zone" id="midiDropZone">
+      <input type="file" id="midiFileInput" accept=".mid,.midi">
+      <div class="drop-zone-icon">
+        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <rect x="2" y="3" width="4" height="14" rx="1"/>
+          <rect x="8" y="6" width="4" height="11" rx="1"/>
+          <rect x="14" y="2" width="4" height="15" rx="1"/>
+          <rect x="20" y="5" width="4" height="12" rx="1"/>
+          <line x1="2" y1="21" x2="24" y2="21"/>
+        </svg>
+      </div>
+      <div class="drop-zone-label" data-i18n="dropMidiLabel">MIDI vocal part</div>
+      <div class="drop-zone-sub" data-i18n="dropMidiSub">One .mid file with the melody</div>
+      <div class="drop-zone-files" id="midiFileName" data-i18n="dropMidiEmpty">No file loaded</div>
+    </div>
+  </div>
+
+  <div class="lyrics-row">
+    <label data-i18n="labelLyrics">📝 Lyrics (optional) — shown on notes and in the side panel</label>
+    <textarea id="lyricsInput" data-i18n-placeholder="placeholderLyrics" placeholder="Paste song lyrics here..."></textarea>
+  </div>
+
+  <div class="device-row">
+    <div class="device-group">
+      <label data-i18n="labelMic">🎤 Input device (microphone)</label>
+      <select class="device-select" id="micDeviceSelect"><option value="">— По умолчанию —</option></select>
+    </div>
+    <div class="device-group">
+      <label data-i18n="labelOut">🔊 Output device</label>
+      <select class="device-select" id="outDeviceSelect"><option value="">— По умолчанию —</option></select>
+    </div>
+  </div>
+
+  <div class="load-actions">
+    <button class="btn-primary" id="startBtn" disabled data-i18n="startBtn">▶ Start session</button>
+    <span class="load-hint" data-i18n="loadHint">Space = Play/Pause · R = Restart · M = Metronome · L = Lyrics · ? = Help</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     MAIN APP SHELL
+     ═══════════════════════════════════════════════════════ -->
+<div id="appShell" class="hidden">
+
+  <div id="topBar">
+    <div class="top-song-info">
+      <div class="top-song-title" id="topSongTitle">—</div>
+      <div class="top-song-meta" id="topSongMeta">BPM: — · 0:00 / 0:00</div>
+    </div>
+    <div class="top-stat"><span class="top-stat-label" data-i18n="statAccuracy">Accuracy</span><span class="top-stat-value" id="topAccuracy">—</span></div>
+    <div class="top-stat"><span class="top-stat-label" data-i18n="statScore">Score</span><span class="top-stat-value" id="topScore">0</span></div>
+    <div class="top-stat"><span class="top-stat-label" data-i18n="statNotes">Notes</span><span class="top-stat-value" id="topNotes">0 / 0</span></div>
+    <div class="meter-wrap"><label data-i18n="labelMicMeter">MIC</label><div id="micVolumeMeter"><div id="micVolumeFill"></div></div></div>
+    <div id="recIndicator" class="hidden"><div class="rec-dot"></div>REC</div>
+    <div class="lang-switcher">
+      <button class="lang-btn active" data-lang="en">EN</button>
+      <button class="lang-btn" data-lang="ru">RU</button>
+      <button class="lang-btn" data-lang="zh">ZH</button>
+    </div>
+    <button class="btn-secondary btn-back" id="backToLoad" data-i18n="backToLoad">← New song</button>
+  </div>
+
+  <div id="mainArea">
+    <div id="canvasWrap"><canvas id="noteCanvas"></canvas></div>
+    <div id="lyricsPanel" class="hidden">
+      <div id="lyricsDragHandle"></div>
+      <div class="lyrics-header">
+        <span data-i18n="lyricsHeader">Lyrics</span>
+        <div class="lyrics-header-btns">
+          <button class="lyrics-font-btn" id="btnLyricsFontDown" title="Уменьшить текст">A−</button>
+          <button class="lyrics-font-btn" id="btnLyricsFontUp" title="Увеличить текст">A+</button>
+          <button class="lyrics-icon-btn" id="btnEditLyrics" title="Редактировать привязку">✏️</button>
+          <button class="lyrics-icon-btn" id="btnHideLyricsPanel" title="Скрыть панель (L)">✕</button>
+        </div>
+      </div>
+      <div id="lyricsList"></div>
+    </div>
+  </div>
+
+  <div id="overviewStrip"><canvas id="overviewCanvas"></canvas></div>
+
+  <div id="bottomBar">
+    <div class="transport-btns">
+      <button class="btn-transport" id="btnRestart" title="Рестарт (R)">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M13.5 2.5A7 7 0 1 0 15 8h-2a5 5 0 1 1-1.5-3.5L9 7h5V2l-1.5 1.5z"/>
+        </svg>
+      </button>
+      <button class="btn-transport danger" id="btnStop" title="Стоп — показать результат">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+          <rect x="2" y="2" width="12" height="12" rx="2"/>
+        </svg>
+      </button>
+      <button class="btn-transport" id="btnPlay" title="Старт/Пауза (Space)">
+        <svg id="playIcon" width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+          <polygon points="3,1 15,8 3,15"/>
+        </svg>
+        <svg id="pauseIcon" width="16" height="16" viewBox="0 0 16 16" fill="currentColor" style="display:none">
+          <rect x="2" y="1" width="5" height="14" rx="1"/><rect x="9" y="1" width="5" height="14" rx="1"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="bottom-controls">
+      <div class="ctrl-group"><span class="ctrl-label">🔊</span><input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="0.8"></div>
+      <div class="ctrl-group"><span class="ctrl-label">🎤</span><input type="range" id="micSensSlider" min="0.005" max="0.25" step="0.005" value="0.01"></div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">♩±</span>
+        <input type="range" id="transposeSlider" min="-6" max="6" step="1" value="0">
+        <span id="transposeValue">0</span>
+      </div>
+      <div class="mode-toggle">
+        <button class="mode-btn active" id="modePerf" data-rate="1.0">100%</button>
+        <button class="mode-btn" id="modePract" data-rate="0.75">75%</button>
+      </div>
+      <div class="metronome-group">
+        <button class="btn-secondary btn-sm" id="btnMetronome" data-i18n="btnMetronome">🥁 Metronome</button>
+        <input type="number" id="bpmInput" min="20" max="300" step="1" value="120" title="BPM метронома">
+      </div>
+      <button class="btn-secondary btn-sm" id="btnToggleLyrics" data-i18n="btnLyrics">📝 Lyrics</button>
+      <button class="btn-secondary btn-sm" id="btnRecord" data-i18n="btnRecord">⏺ Record</button>
+      <button class="btn-secondary btn-sm" id="btnHelp" data-i18n="btnHelp">?</button>
+      <button class="btn-secondary btn-sm" id="btnSaveKaraoke" data-i18n="btnSave">💾 Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Save progress overlay -->
+<div id="saveProgressOverlay" class="hidden">
+  <div id="saveProgressBar"><div id="saveProgressFill"></div></div>
+  <div id="saveProgressLabel" data-i18n="savePreparing">Preparing project...</div>
+</div>
+
+<!-- Countdown overlay -->
+<div id="countdownOverlay" class="hidden">
+  <div id="countdownNum">5</div>
+</div>
+
+<!-- End-of-MIDI dialog -->
+<div id="endMidiDialog" class="hidden">
+  <div class="dialog-card">
+    <div class="dialog-icon">🎤</div>
+    <div class="dialog-title" data-i18n="endMidiTitle">Vocal part finished</div>
+    <div class="dialog-sub" data-i18n="endMidiSub">Audio is still playing. Finish the session and show results?</div>
+    <div class="dialog-actions">
+      <button class="btn-primary" id="btnEndYes" data-i18n="endMidiYes">Finish</button>
+      <button class="btn-secondary" id="btnEndNo" data-i18n="endMidiNo">Keep listening</button>
+    </div>
+  </div>
+</div>
+
+<!-- Results overlay -->
+<div id="resultsOverlay" class="hidden">
+  <div class="results-card">
+    <div class="results-song" id="resultsSongName">—</div>
+    <div class="results-title" data-i18n="resultsTitle">Results</div>
+    <div class="results-accuracy" id="resultsAccPct">—</div>
+    <div class="results-stars" id="resultsStars">★★★</div>
+    <div id="resultsChart">
+      <div class="results-bar-row">
+        <div class="results-bar-label" data-i18n="barHit">Hit</div>
+        <div class="results-bar-track"><div class="results-bar-fill bar-fill-hit" id="barHit" style="width:0"></div></div>
+        <div class="results-bar-count" id="cntHit">0</div>
+      </div>
+      <div class="results-bar-row">
+        <div class="results-bar-label" data-i18n="barNear">Near</div>
+        <div class="results-bar-track"><div class="results-bar-fill bar-fill-near" id="barNear" style="width:0"></div></div>
+        <div class="results-bar-count" id="cntNear">0</div>
+      </div>
+      <div class="results-bar-row">
+        <div class="results-bar-label" data-i18n="barMiss">Miss</div>
+        <div class="results-bar-track"><div class="results-bar-fill bar-fill-miss" id="barMiss" style="width:0"></div></div>
+        <div class="results-bar-count" id="cntMiss">0</div>
+      </div>
+    </div>
+    <div class="results-actions">
+      <button class="btn-primary" id="resultsPlayAgain" data-i18n="resultsPlayAgain">▶ Play again</button>
+      <button class="btn-secondary" id="resultsShare" data-i18n="resultsShare">📤 Share result</button>
+      <button class="btn-secondary" id="btnResultsSaveKaraoke" data-i18n="resultsSave">💾 Save session</button>
+      <button class="btn-secondary" id="resultsNewSong" data-i18n="resultsNewSong">← New song</button>
+    </div>
+  </div>
+</div>
+
+<!-- Lyrics edit overlay -->
+<div id="lyricsEditOverlay" class="hidden">
+  <div class="lyrics-edit-card">
+    <div class="lyrics-edit-title" data-i18n="lyricsEditTitle">Map lyrics to notes</div>
+    <div class="lyrics-edit-desc" data-i18n="lyricsEditDesc">
+      Each row corresponds to one MIDI note. Check and adjust the text. Empty rows = notes without text (instrumental).
+    </div>
+    <div id="lyricsEditList"></div>
+    <div class="lyrics-edit-actions">
+      <button class="btn-secondary" id="btnLyricsCancel" data-i18n="lyricsEditCancel">Cancel</button>
+      <button class="btn-primary" id="btnLyricsSave" data-i18n="lyricsEditSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Help modal -->
+<div id="helpModal" class="hidden">
+  <div class="help-card">
+    <div class="help-title">
+      <span data-i18n="helpTitle">Keyboard shortcuts</span>
+      <span class="help-close" id="btnHelpClose">✕</span>
+    </div>
+    <table class="help-table">
+      <tr><td><span class="help-kbd">Space</span></td><td data-i18n="helpSpace">Play / Pause</td></tr>
+      <tr><td><span class="help-kbd">R</span></td><td data-i18n="helpR">Restart (with countdown)</td></tr>
+      <tr><td><span class="help-kbd">M</span></td><td data-i18n="helpM">Metronome on / off</td></tr>
+      <tr><td><span class="help-kbd">L</span></td><td data-i18n="helpL">Show / hide lyrics</td></tr>
+      <tr><td><span class="help-kbd">T</span></td><td data-i18n="helpT">Transpose +1</td></tr>
+      <tr><td><span class="help-kbd">?</span> / <span class="help-kbd">/</span></td><td data-i18n="helpQuestion">This help</td></tr>
+      <tr><td><span class="help-kbd">Esc</span></td><td data-i18n="helpEsc">Close dialog / help</td></tr>
+      <tr><td data-i18n="helpOverviewClick">Click on overview bar</td><td data-i18n="helpOverviewDesc">Seek to position</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- Status toast -->
+<div id="statusToast"></div>
+
+<!-- Attribution -->
+<div id="pplxAttr"><a href="https://www.perplexity.ai/computer" target="_blank" rel="noopener noreferrer">Created with Perplexity Computer</a></div>
+
+
+<script>
+(function () { // ← IIFE: prevents all declarations from leaking to window scope
+'use strict';
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CONFIG — all named constants (P1-1, P1-2)
+   Every magic number and colour literal lives here. Reference CONFIG keys
+   everywhere else — never use raw literals.
+   ═══════════════════════════════════════════════════════════════════════════ */
+const CONFIG = Object.freeze({
+  // Canvas layout
+  HIT_LINE_X_RATIO : 0.22,
+  NOTE_HEIGHT      : 22,
+  NOTE_RADIUS      : 5,
+  PITCH_BALL_R     : 14,
+  SCROLL_SPEED     : 160,   // px per second of audio time
+  PITCH_LERP       : 0.12,  // interpolation factor for pitch ball smoothing
+
+  // MIDI parser
+  MERGE_GAP_SEC    : 0.15,  // max gap (s) between same-pitch notes to merge
+  MIN_NOTE_DUR_SEC : 0.02,  // notes shorter than this are discarded
+  MIDI_TAIL_SEC    : 0.5,   // padding added after last note for totalDuration
+  MIDI_END_BUFFER  : 0.3,   // seconds past last note before end dialog fires
+  AUDIO_TAIL_MARGIN : 1.5,   // audio must extend this many seconds past MIDI end to show dialog
+
+  // Scoring
+  HIT_SEMITONE_MAX : 1,     // ≤1 semitone diff = hit sample
+  NEAR_SEMITONE_MAX: 2,     // ≤2 semitone diff = near sample
+  HIT_RATIO_MIN    : 0.4,   // hit%  ≥ this → verdict 'hit'
+  NEAR_RATIO_MIN   : 0.4,   // hit%+near% ≥ this → verdict 'near'
+  SCORE_HIT        : 100,
+  SCORE_NEAR       : 50,
+  STARS_3          : 85,    // accuracy % thresholds for star rating
+  STARS_2          : 60,
+  STARS_1          : 30,
+
+  // Pitch / mic
+  MIC_VOL_SCALE    : 4,     // rms multiplier for mic volume bar
+  MIDI_NOTE_MIN    : 24,    // C1
+  MIDI_NOTE_MAX    : 96,    // C7
+  A4_HZ            : 440,
+  A4_MIDI          : 69,
+
+  // Metronome
+  METRO_FREQ_HZ    : 880,
+  METRO_GAIN_PEAK  : 0.25,
+  METRO_RAMP_UP    : 0.002, // s
+  METRO_RAMP_DOWN  : 0.035, // s
+  METRO_STOP_AFTER : 0.04,  // s
+  METRO_LOOKAHEAD  : 0.1,   // s
+  METRO_GAIN_FLOOR  : 0.001, // near-zero gain target for exponential ramp-down
+
+  // Countdown
+  COUNTDOWN_STEP_MS: 850,
+  COUNTDOWN_GO_MS  : 600,
+  COUNTDOWN_POLL_MS: 50,
+
+  // Seek / navigation
+  SEEK_STEP_SEC    : 5,
+
+  // Recording
+  MEDIA_REC_SLICE  : 100,   // ms
+
+  // Screenshot
+  SCREENSHOT_W     : 640,
+  SCREENSHOT_H     : 360,
+
+  // Lyrics panel
+  LYRICS_FONT_DEFAULT : 14, // px
+  LYRICS_FONT_MIN     : 9,
+  LYRICS_FONT_MAX     : 28,
+  LYRICS_FONT_STEP    : 2,
+
+  // Verdict colours — single source of truth used by all three draw sites
+  VERDICT_COLORS: Object.freeze({
+    hit    : { fill: '#4caf50', glow: 'rgba(76,175,80,0.5)',  screenshot: '#4caf50' },
+    near   : { fill: '#ffc107', glow: 'rgba(255,193,7,0.4)', screenshot: '#ffc107' },
+    miss   : { fill: '#3d3d3d', glow: null,                  screenshot: '#555'    },
+    pending: { fill: '#3d4a8a', glow: null,                  screenshot: '#3d4a8a' },
+  }),
+});
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   STATE — application state and mutable module-level variables (P1-5 … P1-9)
+   ═══════════════════════════════════════════════════════════════════════════ */
+const state = {
+  // ── Audio / playback ────────────────────────────────────────────────────
+  audioBuffers    : [],
+  audioFileNames  : [],
+  midiFileName    : '',
+  songName        : '',
+  midiNotes       : [],
+  midiDurationSec : 0,
+  bpm             : 120,
+  lyrics          : [],           // [{text, noteIndex}] per merged MIDI note
+  rawLyricsText   : '',
+  audioCtx        : null,
+  gainNode        : null,
+  activeSourceNodes: [],
+  analyserNode    : null,
+  micStream       : null,
+  micSource       : null,
+  workletNode     : null,
+  permittedMicStream: null,
+  startedAt       : 0,
+  pausedAt        : 0,
+  isPlaying       : false,
+  playbackRate    : 1.0,
+  transpose       : 0,
+  detectedNote    : -1,
+  detectedRms     : 0,
+  // ── Scoring ─────────────────────────────────────────────────────────────
+  noteVerdicts    : [],
+  score           : 0,
+  judgedCount     : 0,
+  _notePitchSamples: [],
+  // ── Canvas ──────────────────────────────────────────────────────────────
+  pitchBallY      : 0,
+  pitchBallTarget : 0,
+  noteCanvasW     : 0,
+  noteCanvasH     : 0,
+  pitchRangeMin   : 48,  // (was module-level var, P1-8)
+  pitchRangeMax   : 72,
+  // ── Recording ───────────────────────────────────────────────────────────
+  isRecording     : false,
+  recDest         : null,
+  recChunks       : [],
+  recMediaRecorder: null,
+  micRecChunks    : [],
+  micRecMediaRecorder: null,
+  // ── Project file ────────────────────────────────────────────────────────
+  _rawMidiBuffer  : null,
+  _rawMidiFileName: '',
+  _pendingNoteBindings: [],
+  // ── Countdown ───────────────────────────────────────────────────────────
+  countdownActive     : false,
+  preNoteCountdownFired: false,
+  // ── Dialogs / UI ────────────────────────────────────────────────────────
+  midiEndDialogShown  : false,
+  metronomeOn         : false,
+  metronomeScheduled  : 0,
+  lyricsPanelVisible  : false,
+  showLyricsOnTiles   : true,
+  audioPrerollDelay   : 0,
+  // ── Localisation ────────────────────────────────────────────────────────
+  lang: 'en',  // active locale; persisted to localStorage under 'vt_lang'
+  // ── File load staging (was loose module-level vars, P1-5) ───────────────
+  load: {
+    pendingAudioFiles: [],
+    pendingMidiBuffer: null,
+  },
+};
+
+/** Module-level handles (inside IIFE — not on window) */
+let rafId            = null;   // requestAnimationFrame handle
+let metronomeTimerId = null;   // setTimeout handle for metronome scheduler
+let toastTimer       = null;   // setTimeout handle for toast hide
+let savingKaraoke    = false;  // re-entry guard for saveKaraoke
+
+/** Lyrics DOM cache (invalidated on panel rebuild) */
+let lyricsCache = {
+  els       : null,
+  list      : null,
+  offsets   : null,
+  lastActive: -1,
+};
+
+/** Current lyrics font size */
+let lyricsFontSize = CONFIG.LYRICS_FONT_DEFAULT;
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   UI — cached DOM references (queried once)
+   ═══════════════════════════════════════════════════════════════════════════ */
+const ui = {
+  loadScreen      : document.getElementById('loadScreen'),
+  appShell        : document.getElementById('appShell'),
+  audioDropZone   : document.getElementById('audioDropZone'),
+  midiDropZone    : document.getElementById('midiDropZone'),
+  audioFileInput  : document.getElementById('audioFileInput'),
+  midiFileInput   : document.getElementById('midiFileInput'),
+  audioFilesList  : document.getElementById('audioFilesList'),
+  midiFileName    : document.getElementById('midiFileName'),
+  startBtn        : document.getElementById('startBtn'),
+  topSongTitle    : document.getElementById('topSongTitle'),
+  topSongMeta     : document.getElementById('topSongMeta'),
+  topAccuracy     : document.getElementById('topAccuracy'),
+  topScore        : document.getElementById('topScore'),
+  topNotes        : document.getElementById('topNotes'),
+  micVolumeFill   : document.getElementById('micVolumeFill'),
+  recIndicator    : document.getElementById('recIndicator'),
+  btnPlay         : document.getElementById('btnPlay'),
+  btnStop         : document.getElementById('btnStop'),
+  btnRestart      : document.getElementById('btnRestart'),
+  playIcon        : document.getElementById('playIcon'),
+  pauseIcon       : document.getElementById('pauseIcon'),
+  volumeSlider    : document.getElementById('volumeSlider'),
+  micSensSlider   : document.getElementById('micSensSlider'),
+  transposeSlider : document.getElementById('transposeSlider'),
+  transposeValue  : document.getElementById('transposeValue'),
+  resultsOverlay  : document.getElementById('resultsOverlay'),
+  resultsSongName : document.getElementById('resultsSongName'),
+  resultsAccPct   : document.getElementById('resultsAccPct'),
+  resultsStars    : document.getElementById('resultsStars'),
+  barHit          : document.getElementById('barHit'),
+  barNear         : document.getElementById('barNear'),
+  barMiss         : document.getElementById('barMiss'),
+  cntHit          : document.getElementById('cntHit'),
+  cntNear         : document.getElementById('cntNear'),
+  cntMiss         : document.getElementById('cntMiss'),
+  statusToast     : document.getElementById('statusToast'),
+  backToLoad      : document.getElementById('backToLoad'),
+  resultsPlayAgain: document.getElementById('resultsPlayAgain'),
+  resultsNewSong  : document.getElementById('resultsNewSong'),
+  resultsShare    : document.getElementById('resultsShare'),
+  btnRecord       : document.getElementById('btnRecord'),
+  btnMetronome    : document.getElementById('btnMetronome'),
+  bpmInput        : document.getElementById('bpmInput'),
+  btnToggleLyrics : document.getElementById('btnToggleLyrics'),
+  noteCanvas      : document.getElementById('noteCanvas'),
+  ovCanvas        : document.getElementById('overviewCanvas'),
+};
+
+const noteCtx = ui.noteCanvas.getContext('2d');
+const ovCtx   = ui.ovCanvas.getContext('2d');
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SECTION: I18N — internationalisation (EN default, RU, ZH)
+   All UI strings live here; t(key) is the single lookup function.
+   state.lang is persisted to localStorage under key 'vt_lang'.
+   applyLang() re-renders all data-i18n / data-i18n-placeholder elements.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+const LOCALES = Object.freeze({
+  en: {
+    // Load screen
+    appTitle          : 'Vocal Trainer',
+    appSubtitle       : 'Load a backing track and a vocal-melody MIDI — then sing in real time!',
+    labelSongName     : '🎵 Song name',
+    placeholderSong   : 'Enter song name for saving the recording',
+    karaokeZoneLabel  : 'Open saved session (.vkt)',
+    karaokeZoneSub    : 'Drag file here or click to select',
+    loadDivider       : 'or load files manually',
+    dropAudioLabel    : 'Audio backing track',
+    dropAudioSub      : 'WAV / MP3 — multiple files supported',
+    dropAudioEmpty    : 'No files loaded',
+    dropMidiLabel     : 'MIDI vocal part',
+    dropMidiSub       : 'One .mid file with the melody',
+    dropMidiEmpty     : 'No file loaded',
+    labelLyrics       : '📝 Lyrics (optional) — shown on notes and in the side panel',
+    placeholderLyrics : 'Paste song lyrics here...\nLines will be automatically mapped to MIDI notes.',
+    labelMic          : '🎤 Input device (microphone)',
+    labelOut          : '🔊 Output device',
+    deviceDefault     : '— Default —',
+    startBtn          : '▶ Start session',
+    loadHint          : 'Space = Play/Pause · R = Restart · M = Metronome · L = Lyrics · ? = Help',
+
+    // Top bar
+    statAccuracy      : 'Accuracy',
+    statScore         : 'Score',
+    statNotes         : 'Notes',
+    labelMicMeter     : 'MIC',
+    backToLoad        : '← New song',
+
+    // Bottom bar
+    btnMetronome      : '🥁 Metronome',
+    btnLyrics         : '📝 Lyrics',
+    btnRecord         : '⏺ Record',
+    btnStopRecord     : '⏹ Stop rec',
+    btnHelp           : '?',
+    btnSave           : '💾 Save',
+
+    // Canvas / overview
+    overviewLabel     : 'Vocal part',
+    canvasHint        : 'Load files and click "Start session"',
+    countdownGo       : 'GO!',
+
+    // Lyrics panel
+    lyricsHeader      : 'Lyrics',
+    lyricsFontDown    : 'A−',
+    lyricsFontUp      : 'A+',
+
+    // Lyrics edit overlay
+    lyricsEditTitle   : 'Map lyrics to notes',
+    lyricsEditDesc    : 'Each row corresponds to one MIDI note. Check and adjust the text. Empty rows = notes without text (instrumental).',
+    lyricsEditCancel  : 'Cancel',
+    lyricsEditSave    : 'Save',
+    lyricsEditPlaceholder: '(empty)',
+
+    // End-of-MIDI dialog
+    endMidiTitle      : 'Vocal part finished',
+    endMidiSub        : 'Audio is still playing. Finish the session and show results?',
+    endMidiYes        : 'Finish',
+    endMidiNo         : 'Keep listening',
+
+    // Results overlay
+    resultsTitle      : 'Results',
+    barHit            : 'Hit',
+    barNear           : 'Near',
+    barMiss           : 'Miss',
+    resultsPlayAgain  : '▶ Play again',
+    resultsShare      : '📤 Share result',
+    resultsSave       : '💾 Save session',
+    resultsNewSong    : '← New song',
+
+    // Help modal
+    helpTitle         : 'Keyboard shortcuts',
+    helpSpace         : 'Play / Pause',
+    helpR             : 'Restart (with countdown)',
+    helpM             : 'Metronome on / off',
+    helpL             : 'Show / hide lyrics',
+    helpT             : 'Transpose +1',
+    helpQuestion      : 'This help',
+    helpEsc           : 'Close dialog / help',
+    helpOverviewClick : 'Click on overview bar',
+    helpOverviewDesc  : 'Seek to position',
+
+    // Save progress overlay
+    savePreparing     : 'Preparing project...',
+    saveEncodingMidi  : 'Encoding MIDI...',
+    saveEncodingAudio : 'Encoding audio...',
+    saveAudioProgress : 'Audio {n}/{total}: {name}...',
+    saveAudioDone     : 'Audio {n}/{total} done',
+    savePacking       : 'Packing...',
+    saveWriting       : 'Writing file...',
+    saveDone          : 'Saved!',
+    saveDownloaded    : 'File downloaded',
+
+    // Toasts
+    toastDragAudio    : 'Drop WAV or MP3 files',
+    toastDragMidi     : 'Drop a MIDI file (.mid)',
+    toastDragVkt      : 'Drop a .vkt file',
+    toastAudioError   : 'Decode error: ',
+    toastNoData       : 'No data to save',
+    toastSaving       : 'Save already in progress...',
+    toastSaved        : 'Project saved: ',
+    toastDownloaded   : 'Project downloaded: ',
+    toastSaveError    : 'Save error: ',
+    toastLoaded       : 'Project loaded: ',
+    toastLoadError    : 'Load error: ',
+    toastBadVkt       : 'Invalid .vkt file format',
+    toastMicError     : 'Microphone unavailable: ',
+    toastNoAudio      : 'Start playback first',
+    toastRecStart     : 'Recording started 🔴',
+    toastRecMixed     : 'Mixed recording saved: ',
+    toastRecMic       : 'Mic recording saved: ',
+    toastMetroOn      : 'Metronome on 🥁',
+    toastMetroOff     : 'Metronome off',
+    toastBpmChanged   : 'Metronome BPM: ',
+    toastLyricsOn     : 'Lyrics on',
+    toastLyricsOff    : 'Lyrics off',
+    toastSeekPos      : 'Position: ',
+    toastStarted      : 'Let\'s go! 🎤',
+    toastRestarted    : 'Let\'s go! 🎤',
+    toastScreenshot   : 'Screenshot saved: ',
+    toastStartError   : 'Error: ',
+    toastNoMidi       : 'MIDI has no notes',
+    toastNoAudioDec   : 'Failed to decode audio',
+
+    // Screenshot
+    screenshotTitle   : 'Vocal Trainer — Result',
+
+    // HUD
+    hudAccNone        : '—',
+
+    // Loading state
+    loadingBtn        : 'Loading...',
+
+    // Mic label in device default
+    micDefaultLabel   : 'Microphone ',
+    spkDefaultLabel   : 'Speaker ',
+
+    // BPM meta
+    bpmMeta           : 'BPM: {bpm}  ·  {cur} / {total}',
+  },
+
+  ru: {
+    appTitle          : 'Vocal Trainer',
+    appSubtitle       : 'Загрузите фонограмму и MIDI с вокальной партией — и пойте в реальном времени!',
+    labelSongName     : '🎵 Название',
+    placeholderSong   : 'Введите название песни для сохранения записи',
+    karaokeZoneLabel  : 'Открыть сохранённую тренировку (.vkt)',
+    karaokeZoneSub    : 'Перетащите файл или нажмите для выбора',
+    loadDivider       : 'или загрузите файлы вручную',
+    dropAudioLabel    : 'Аудио-фонограмма',
+    dropAudioSub      : 'WAV / MP3 — можно несколько',
+    dropAudioEmpty    : 'Файлы не загружены',
+    dropMidiLabel     : 'MIDI вокальная партия',
+    dropMidiSub       : 'Один .mid файл с мелодией',
+    dropMidiEmpty     : 'Файл не загружен',
+    labelLyrics       : '📝 Текст песни (необязательно) — показывается на нотах и в боковой панели',
+    placeholderLyrics : 'Вставьте текст песни здесь...\nСтроки будут автоматически привязаны к нотам MIDI.',
+    labelMic          : '🎤 Устройство записи (микрофон)',
+    labelOut          : '🔊 Устройство воспроизведения',
+    deviceDefault     : '— По умолчанию —',
+    startBtn          : '▶ Начать тренировку',
+    loadHint          : 'Space = Play/Pause · R = Рестарт · M = Метроном · L = Текст · ? = Помощь',
+
+    statAccuracy      : 'Точность',
+    statScore         : 'Очки',
+    statNotes         : 'Ноты',
+    labelMicMeter     : 'МИК',
+    backToLoad        : '← Другая песня',
+
+    btnMetronome      : '🥁 Метроном',
+    btnLyrics         : '📝 Текст',
+    btnRecord         : '⏺ Запись',
+    btnStopRecord     : '⏹ Стоп запись',
+    btnHelp           : '?',
+    btnSave           : '💾 Сохранить',
+
+    overviewLabel     : 'Вокальная партия',
+    canvasHint        : 'Загрузите файлы и нажмите «Начать тренировку»',
+    countdownGo       : 'СТАРТ',
+
+    lyricsHeader      : 'Текст',
+    lyricsFontDown    : 'A−',
+    lyricsFontUp      : 'A+',
+
+    lyricsEditTitle   : 'Привязка текста к нотам',
+    lyricsEditDesc    : 'Каждая строка соответствует одной ноте MIDI. Проверьте и скорректируйте текст. Пустые строки = ноты без текста (инструментальные).',
+    lyricsEditCancel  : 'Отмена',
+    lyricsEditSave    : 'Сохранить',
+    lyricsEditPlaceholder: '(пусто)',
+
+    endMidiTitle      : 'Вокальная партия завершена',
+    endMidiSub        : 'Аудио ещё продолжается. Завершить тренировку и показать результаты?',
+    endMidiYes        : 'Завершить',
+    endMidiNo         : 'Слушать дальше',
+
+    resultsTitle      : 'Результат',
+    barHit            : 'Попал',
+    barNear           : 'Рядом',
+    barMiss           : 'Промах',
+    resultsPlayAgain  : '▶ Ещё раз',
+    resultsShare      : '📤 Поделиться результатом',
+    resultsSave       : '💾 Сохранить тренировку',
+    resultsNewSong    : '← Другая песня',
+
+    helpTitle         : 'Клавиши и управление',
+    helpSpace         : 'Play / Пауза',
+    helpR             : 'Рестарт (с отсчётом)',
+    helpM             : 'Метроном вкл / выкл',
+    helpL             : 'Показать / скрыть текст',
+    helpT             : 'Транспозиция +1',
+    helpQuestion      : 'Эта подсказка',
+    helpEsc           : 'Закрыть диалог / подсказку',
+    helpOverviewClick : 'Клик на обзорной полосе',
+    helpOverviewDesc  : 'Перейти к позиции в треке',
+
+    savePreparing     : 'Подготовка проекта...',
+    saveEncodingMidi  : 'Кодирование MIDI...',
+    saveEncodingAudio : 'Кодирование аудио...',
+    saveAudioProgress : 'Аудио {n}/{total}: {name}...',
+    saveAudioDone     : 'Аудио {n}/{total} готово',
+    savePacking       : 'Сборка пакета...',
+    saveWriting       : 'Запись файла...',
+    saveDone          : 'Сохранено!',
+    saveDownloaded    : 'Файл скачан',
+
+    toastDragAudio    : 'Перетащите WAV или MP3 файлы',
+    toastDragMidi     : 'Перетащите MIDI файл (.mid)',
+    toastDragVkt      : 'Перетащите файл .vkt',
+    toastAudioError   : 'Ошибка декодирования: ',
+    toastNoData       : 'Нет данных для сохранения',
+    toastSaving       : 'Сохранение уже идёт...',
+    toastSaved        : 'Проект сохранён: ',
+    toastDownloaded   : 'Проект скачан: ',
+    toastSaveError    : 'Ошибка сохранения: ',
+    toastLoaded       : 'Проект загружен: ',
+    toastLoadError    : 'Ошибка загрузки: ',
+    toastBadVkt       : 'Неверный формат .vkt файла',
+    toastMicError     : 'Микрофон недоступен: ',
+    toastNoAudio      : 'Сначала запустите воспроизведение',
+    toastRecStart     : 'Запись началась 🔴',
+    toastRecMixed     : 'Смешанная запись сохранена: ',
+    toastRecMic       : 'Запись микрофона сохранена: ',
+    toastMetroOn      : 'Метроном вкл 🥁',
+    toastMetroOff     : 'Метроном выкл',
+    toastBpmChanged   : 'BPM метронома: ',
+    toastLyricsOn     : 'Текст включён',
+    toastLyricsOff    : 'Текст выключён',
+    toastSeekPos      : 'Позиция: ',
+    toastStarted      : 'Пение пошло! 🎤',
+    toastRestarted    : 'Пение пошло! 🎤',
+    toastScreenshot   : 'Скриншот сохранён: ',
+    toastStartError   : 'Ошибка: ',
+    toastNoMidi       : 'MIDI не содержит нот',
+    toastNoAudioDec   : 'Не удалось декодировать аудио',
+
+    screenshotTitle   : 'Vocal Trainer — Результат',
+    hudAccNone        : '—',
+    loadingBtn        : 'Загрузка...',
+    micDefaultLabel   : 'Микрофон ',
+    spkDefaultLabel   : 'Динамики ',
+    bpmMeta           : 'BPM: {bpm}  ·  {cur} / {total}',
+  },
+
+  zh: {
+    appTitle          : 'Vocal Trainer',
+    appSubtitle       : '加载伴奏音频和人声旋律MIDI文件，然后实时演唱！',
+    labelSongName     : '🎵 歌曲名称',
+    placeholderSong   : '输入歌曲名称以保存录音',
+    karaokeZoneLabel  : '打开已保存的训练文件 (.vkt)',
+    karaokeZoneSub    : '拖拽文件到此处或点击选择',
+    loadDivider       : '或手动加载文件',
+    dropAudioLabel    : '伴奏音频',
+    dropAudioSub      : 'WAV / MP3 — 支持多个文件',
+    dropAudioEmpty    : '未加载文件',
+    dropMidiLabel     : 'MIDI 人声旋律',
+    dropMidiSub       : '一个包含旋律的 .mid 文件',
+    dropMidiEmpty     : '未加载文件',
+    labelLyrics       : '📝 歌词（可选）— 显示在音符上和侧边栏中',
+    placeholderLyrics : '在此粘贴歌词...\n歌词行将自动分配到 MIDI 音符。',
+    labelMic          : '🎤 输入设备（麦克风）',
+    labelOut          : '🔊 输出设备',
+    deviceDefault     : '— 默认 —',
+    startBtn          : '▶ 开始训练',
+    loadHint          : 'Space = 播放/暂停 · R = 重新开始 · M = 节拍器 · L = 歌词 · ? = 帮助',
+
+    statAccuracy      : '准确率',
+    statScore         : '分数',
+    statNotes         : '音符',
+    labelMicMeter     : '麦克',
+    backToLoad        : '← 新歌曲',
+
+    btnMetronome      : '🥁 节拍器',
+    btnLyrics         : '📝 歌词',
+    btnRecord         : '⏺ 录音',
+    btnStopRecord     : '⏹ 停止录音',
+    btnHelp           : '?',
+    btnSave           : '💾 保存',
+
+    overviewLabel     : '人声旋律',
+    canvasHint        : '加载文件并点击"开始训练"',
+    countdownGo       : '开始！',
+
+    lyricsHeader      : '歌词',
+    lyricsFontDown    : 'A−',
+    lyricsFontUp      : 'A+',
+
+    lyricsEditTitle   : '歌词与音符映射',
+    lyricsEditDesc    : '每行对应一个 MIDI 音符。检查并调整文本。空行表示无歌词的音符（纯乐器）。',
+    lyricsEditCancel  : '取消',
+    lyricsEditSave    : '保存',
+    lyricsEditPlaceholder: '（空）',
+
+    endMidiTitle      : '人声旋律已结束',
+    endMidiSub        : '音频仍在播放。结束训练并显示结果？',
+    endMidiYes        : '结束',
+    endMidiNo         : '继续收听',
+
+    resultsTitle      : '结果',
+    barHit            : '命中',
+    barNear           : '接近',
+    barMiss           : '错过',
+    resultsPlayAgain  : '▶ 再来一次',
+    resultsShare      : '📤 分享结果',
+    resultsSave       : '💾 保存训练',
+    resultsNewSong    : '← 新歌曲',
+
+    helpTitle         : '键盘快捷键',
+    helpSpace         : '播放 / 暂停',
+    helpR             : '重新开始（含倒计时）',
+    helpM             : '节拍器 开/关',
+    helpL             : '显示 / 隐藏歌词',
+    helpT             : '移调 +1',
+    helpQuestion      : '此帮助',
+    helpEsc           : '关闭对话框 / 帮助',
+    helpOverviewClick : '点击总览条',
+    helpOverviewDesc  : '跳转到指定位置',
+
+    savePreparing     : '正在准备项目...',
+    saveEncodingMidi  : '编码 MIDI...',
+    saveEncodingAudio : '编码音频...',
+    saveAudioProgress : '音频 {n}/{total}：{name}...',
+    saveAudioDone     : '音频 {n}/{total} 完成',
+    savePacking       : '打包中...',
+    saveWriting       : '写入文件...',
+    saveDone          : '已保存！',
+    saveDownloaded    : '文件已下载',
+
+    toastDragAudio    : '拖入 WAV 或 MP3 文件',
+    toastDragMidi     : '拖入 MIDI 文件（.mid）',
+    toastDragVkt      : '拖入 .vkt 文件',
+    toastAudioError   : '解码错误：',
+    toastNoData       : '没有可保存的数据',
+    toastSaving       : '保存已在进行中...',
+    toastSaved        : '项目已保存：',
+    toastDownloaded   : '项目已下载：',
+    toastSaveError    : '保存错误：',
+    toastLoaded       : '项目已加载：',
+    toastLoadError    : '加载错误：',
+    toastBadVkt       : '.vkt 文件格式无效',
+    toastMicError     : '麦克风不可用：',
+    toastNoAudio      : '请先启动播放',
+    toastRecStart     : '录音已开始 🔴',
+    toastRecMixed     : '混音录音已保存：',
+    toastRecMic       : '麦克风录音已保存：',
+    toastMetroOn      : '节拍器已开启 🥁',
+    toastMetroOff     : '节拍器已关闭',
+    toastBpmChanged   : '节拍器 BPM：',
+    toastLyricsOn     : '歌词已开启',
+    toastLyricsOff    : '歌词已关闭',
+    toastSeekPos      : '位置：',
+    toastStarted      : '开始演唱！🎤',
+    toastRestarted    : '开始演唱！🎤',
+    toastScreenshot   : '截图已保存：',
+    toastStartError   : '错误：',
+    toastNoMidi       : 'MIDI 中没有音符',
+    toastNoAudioDec   : '无法解码音频',
+
+    screenshotTitle   : 'Vocal Trainer — 结果',
+    hudAccNone        : '—',
+    loadingBtn        : '加载中...',
+    micDefaultLabel   : '麦克风 ',
+    spkDefaultLabel   : '扬声器 ',
+    bpmMeta           : 'BPM: {bpm}  ·  {cur} / {total}',
+  },
+});
+
+/** @returns {string} Current locale string */
+function t(key) {
+  return (LOCALES[state.lang] && LOCALES[state.lang][key]) || LOCALES.en[key] || key;
+}
+
+/**
+ * Apply current language to all data-i18n / data-i18n-placeholder elements
+ * and update dynamic JS-driven labels.
+ * @returns {void}
+ */
+function applyLang() {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.dataset.i18n;
+    el.textContent = t(key);
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    el.placeholder = t(el.dataset.i18nPlaceholder);
+  });
+  // Language switcher buttons
+  document.querySelectorAll('.lang-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.lang === state.lang);
+  });
+  // Dynamic button labels that are set at runtime
+  if (ui.startBtn && !ui.startBtn.disabled) {
+    ui.startBtn.textContent = t('startBtn');
+  }
+  if (ui.btnRecord) {
+    ui.btnRecord.textContent = state.isRecording ? t('btnStopRecord') : t('btnRecord');
+  }
+  if (ui.btnMetronome) {
+    ui.btnMetronome.textContent = t('btnMetronome');
+  }
+  if (ui.btnToggleLyrics) {
+    ui.btnToggleLyrics.textContent = t('btnLyrics');
+  }
+  // Save progress overlay default label
+  const spl = document.getElementById('saveProgressLabel');
+  if (spl && spl.textContent === '') spl.textContent = t('savePreparing');
+}
+
+/**
+ * Switch UI language, persist to localStorage, re-render.
+ * @param {'en'|'ru'|'zh'} lang
+ * @returns {void}
+ */
+function setLang(lang) {
+  if (!LOCALES[lang]) return;
+  state.lang = lang;
+  localStorage.setItem('vt_lang', lang);
+  applyLang();
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SECTION: DEVICE ENUMERATION
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/** @returns {Promise<void>} */
+async function enumerateDevices() {
+  const micSel = document.getElementById('micDeviceSelect');
+  const outSel = document.getElementById('outDeviceSelect');
+  if (!micSel || !outSel) return;
+  try {
+    if (!state.permittedMicStream) {
+      try {
+        state.permittedMicStream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+        });
+      } catch (e) {
+        console.error('Pre-permission mic request failed:', e);
+      }
+    }
+    const devices   = await navigator.mediaDevices.enumerateDevices();
+    const savedMic  = localStorage.getItem('vt_mic_device');
+    const savedOut  = localStorage.getItem('vt_out_device');
+
+    micSel.innerHTML = `<option value="">${t('deviceDefault')}</option>`;
+    devices.filter(d => d.kind === 'audioinput').forEach(d => {
+      const opt = document.createElement('option');
+      opt.value = d.deviceId;
+      opt.textContent = d.label || (t('micDefaultLabel') + d.deviceId.slice(0, 8));
+      if (savedMic && d.deviceId === savedMic) opt.selected = true;
+      micSel.appendChild(opt);
+    });
+
+    const canSetSink = typeof AudioContext.prototype.setSinkId === 'function';
+    if (canSetSink) {
+      outSel.innerHTML = `<option value="">${t('deviceDefault')}</option>`;
+      devices.filter(d => d.kind === 'audiooutput').forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d.deviceId;
+        opt.textContent = d.label || (t('spkDefaultLabel') + d.deviceId.slice(0, 8));
+        if (savedOut && d.deviceId === savedOut) opt.selected = true;
+        outSel.appendChild(opt);
+      });
+      outSel.closest('.device-group').style.display = '';
+    } else {
+      outSel.closest('.device-group').style.display = 'none';
+    }
+  } catch (e) {
+    console.warn('Device enumeration failed:', e);
+  }
+}
+
+/** @returns {{ echoCancellation:boolean, noiseSuppression:boolean, autoGainControl:boolean, deviceId?:{exact:string} }} */
+function getSelectedMicConstraints() {
+  const sel      = document.getElementById('micDeviceSelect');
+  const deviceId = sel ? sel.value : '';
+  const base     = { echoCancellation: false, noiseSuppression: false, autoGainControl: false };
+  if (deviceId) base.deviceId = { exact: deviceId };
+  return base;
+}
+
+/** @returns {Promise<void>} */
+async function applyOutputDevice() {
+  const sel = document.getElementById('outDeviceSelect');
+  if (!sel || !sel.value) return;
+  try {
+    if (state.audioCtx && typeof state.audioCtx.setSinkId === 'function') {
+      await state.audioCtx.setSinkId(sel.value);
+    }
+  } catch (e) {
+    console.warn('setSinkId failed:', e);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const micSel = document.getElementById('micDeviceSelect');
+  const outSel = document.getElementById('outDeviceSelect');
+  if (micSel) {
+    micSel.addEventListener('change', () => {
+      localStorage.setItem('vt_mic_device', micSel.value);
+      if (state.permittedMicStream) {
+        state.permittedMicStream.getTracks().forEach(t => t.stop());
+        state.permittedMicStream = null;
+      }
+    });
+  }
+  if (outSel) {
+    outSel.addEventListener('change', () => {
+      localStorage.setItem('vt_out_device', outSel.value);
+    });
+  }
+  // Restore persisted language
+  const savedLang = localStorage.getItem('vt_lang');
+  if (savedLang && LOCALES[savedLang]) { state.lang = savedLang; }
+  applyLang();
+  enumerateDevices();
+});
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SECTION: MIDI PARSER
+   NOTE: Parser logic intentionally not restructured per anti-pattern rule —
+   working binary parser preserved as-is; only magic numbers replaced.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Parse a MIDI ArrayBuffer into a sorted array of merged note events.
+ * @param {ArrayBuffer} buffer
+ * @returns {{ notes: Array<{noteNumber:number,startSec:number,durationSec:number,endSec:number}>, bpm:number, totalDuration:number }}
+ */
+function parseMidi(buffer) {
+  const view  = new DataView(buffer);
+  const bytes = new Uint8Array(buffer);
+  let pos = 0;
+
+  function readUint32() { const v = view.getUint32(pos); pos += 4; return v; }
+  function readUint16() { const v = view.getUint16(pos); pos += 2; return v; }
+  function readVarLen() {
+    let value = 0, byte;
+    do { byte = bytes[pos++]; value = (value << 7) | (byte & 0x7f); } while (byte & 0x80);
+    return value;
+  }
+
+  const headerMagic = String.fromCharCode(...bytes.slice(0, 4)); pos = 4;
+  if (headerMagic !== 'MThd') throw new Error('Not a valid MIDI file');
+  readUint32(); // header length — always 6, consumed but not needed
+  /*const midiFormat =*/ readUint16();
+  const numTracks    = readUint16();
+  const timeDivision = readUint16();
+  if (timeDivision & 0x8000) throw new Error('SMPTE not supported');
+  const ticksPerBeat = timeDivision;
+  const allRawEvents = [];
+
+  for (let t = 0; t < numTracks; t++) {
+    const trackMagic = String.fromCharCode(...bytes.slice(pos, pos + 4)); pos += 4;
+    if (trackMagic !== 'MTrk') throw new Error(`Track ${t}: expected MTrk`);
+    const trackLen = readUint32(), trackEnd = pos + trackLen;
+    let absTick = 0, lastStatus = 0;
+
+    while (pos < trackEnd) {
+      const delta = readVarLen(); absTick += delta;
+      let statusByte = bytes[pos];
+      if (statusByte & 0x80) { lastStatus = statusByte; pos++; } else { statusByte = lastStatus; }
+      const msgType = statusByte & 0xf0;
+
+      if (statusByte === 0xff) {
+        const metaType = bytes[pos++], metaLen = readVarLen();
+        if (metaType === 0x51 && metaLen === 3) {
+          const us = (bytes[pos] << 16) | (bytes[pos + 1] << 8) | bytes[pos + 2];
+          allRawEvents.push({ tick: absTick, type: 'tempo', tempo: us });
+        }
+        pos += metaLen;
+      } else if (statusByte === 0xf0 || statusByte === 0xf7) {
+        pos += readVarLen();
+      } else if (msgType === 0x90) {
+        const note = bytes[pos++], vel = bytes[pos++];
+        allRawEvents.push({ tick: absTick, type: vel > 0 ? 'noteOn' : 'noteOff', note, velocity: vel });
+      } else if (msgType === 0x80) {
+        const note = bytes[pos++]; pos++;
+        allRawEvents.push({ tick: absTick, type: 'noteOff', note });
+      } else if (msgType === 0xa0) { pos += 2; }
+        else if (msgType === 0xb0) { pos += 2; }
+        else if (msgType === 0xc0) { pos += 1; }
+        else if (msgType === 0xd0) { pos += 1; }
+        else if (msgType === 0xe0) { pos += 2; }
+        else { pos++; }
+    }
+    pos = trackEnd;
+  }
+
+  allRawEvents.sort((a, b) => a.tick - b.tick);
+  const tempoMap = [{ tick: 0, usPerBeat: 500000 }];
+  for (const ev of allRawEvents) {
+    if (ev.type === 'tempo') tempoMap.push({ tick: ev.tick, usPerBeat: ev.tempo });
+  }
+
+  function tickToSec(tick) {
+    let seconds = 0, prevTick = 0, prevUs = tempoMap[0].usPerBeat;
+    for (let i = 1; i < tempoMap.length; i++) {
+      const te = tempoMap[i];
+      if (te.tick > tick) break;
+      seconds += (te.tick - prevTick) * (prevUs / 1e6) / ticksPerBeat;
+      prevTick = te.tick; prevUs = te.usPerBeat;
+    }
+    return seconds + (tick - prevTick) * (prevUs / 1e6) / ticksPerBeat;
+  }
+
+  const pendingNotes = {}, notes = [];
+  for (const ev of allRawEvents) {
+    const key = `${ev.channel ?? 0}-${ev.note}`;
+    if (ev.type === 'noteOn') {
+      if (!pendingNotes[key]) pendingNotes[key] = [];
+      pendingNotes[key].push(ev.tick);
+    } else if (ev.type === 'noteOff') {
+      if (pendingNotes[key] && pendingNotes[key].length > 0) {
+        const startTick   = pendingNotes[key].shift();
+        const startSec    = tickToSec(startTick);
+        const endSec      = tickToSec(ev.tick);
+        const durationSec = endSec - startSec;
+        if (durationSec > CONFIG.MIN_NOTE_DUR_SEC) {
+          notes.push({ noteNumber: ev.note, startSec, durationSec, endSec });
+        }
+      }
+    }
+  }
+  notes.sort((a, b) => a.startSec - b.startSec);
+
+  // Merge consecutive same-pitch notes with gap ≤ MERGE_GAP_SEC
+  const merged = [];
+  for (const n of notes) {
+    if (!merged.length) { merged.push({ ...n }); continue; }
+    const last = merged[merged.length - 1];
+    const gap  = n.startSec - last.endSec;
+    if (last.noteNumber === n.noteNumber && gap >= 0 && gap <= CONFIG.MERGE_GAP_SEC) {
+      last.endSec      = n.endSec;
+      last.durationSec = last.endSec - last.startSec;
+    } else {
+      merged.push({ ...n });
+    }
+  }
+
+  const bpm           = Math.round(60_000_000 / tempoMap[0].usPerBeat);
+  const totalDuration = merged.length > 0 ? merged[merged.length - 1].endSec + CONFIG.MIDI_TAIL_SEC : 0;
+  return { notes: merged, bpm, totalDuration };
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SECTION: AUDIO ENGINE
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/** @returns {Promise<void>} */
+async function ensureAudioContext() {
+  if (!state.audioCtx || state.audioCtx.state === 'closed') {
+    state.audioCtx = new AudioContext({ latencyHint: 'interactive' });
+    state.gainNode = state.audioCtx.createGain();
+    state.gainNode.gain.value = 0.8;
+    state.gainNode.connect(state.audioCtx.destination);
+    state.analyserNode = state.audioCtx.createAnalyser();
+    state.analyserNode.fftSize = 256;
+    state.gainNode.connect(state.analyserNode);
+    await applyOutputDevice();
+  }
+  if (state.audioCtx.state === 'suspended') await state.audioCtx.resume();
+}
+
+/**
+ * @param {File[]} files
+ * @returns {Promise<AudioBuffer[]>}
+ */
+async function decodeAudioFiles(files) {
+  const buffers = [];
+  for (const file of files) {
+    const ab = await file.arrayBuffer();
+    try {
+      buffers.push(await state.audioCtx.decodeAudioData(ab));
+    } catch (e) {
+      console.error('Audio decode error for ' + file.name + ':', e);
+      showToast(t('toastAudioError') + file.name);
+    }
+  }
+  return buffers;
+}
+
+/**
+ * @param {number} [offsetSec=0]
+ * @param {number} [scheduleDelay=0]
+ * @returns {void}
+ */
+function startAudioPlayback(offsetSec = 0, scheduleDelay = 0) {
+  stopAudioPlayback();
+  const rate = state.playbackRate;
+  const when = state.audioCtx.currentTime + scheduleDelay;
+  state.activeSourceNodes = state.audioBuffers.map(buf => {
+    const src        = state.audioCtx.createBufferSource();
+    src.buffer       = buf;
+    src.playbackRate.value = rate;
+    src.connect(state.gainNode);
+    const safeOffset = offsetSec * rate > buf.duration ? 0 : offsetSec;
+    src.start(when, safeOffset);
+    return src;
+  });
+  state.startedAt = when - offsetSec;
+}
+
+/**
+ * Stop all active audio sources, disconnecting them to allow GC. (P0-1)
+ * @returns {void}
+ */
+function stopAudioPlayback() {
+  state.activeSourceNodes.forEach(src => {
+    try { src.stop(); }    catch (e) { /* already stopped */ }
+    try { src.disconnect(); } catch (e) { /* already disconnected */ }
+  });
+  state.activeSourceNodes = [];
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SECTION: PITCH DETECTOR
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/** @returns {Promise<void>} */
+async function startPitchDetection() {
+  if (state.workletNode) return; // guard against re-entry
+  let stream;
+  if (state.permittedMicStream && state.permittedMicStream.active) {
+    stream = state.permittedMicStream;
+  } else {
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: getSelectedMicConstraints() });
+    } catch (e) {
+      console.error('Mic access denied:', e);
+      showToast(t('toastMicError') + e.message);
+      return;
+    }
+    state.permittedMicStream = stream;
+  }
+  state.micStream = stream;
+  const micSource = state.audioCtx.createMediaStreamSource(stream);
+  state.micSource = micSource;
+
+  let useWorklet = false;
+  try {
+    await state.audioCtx.audioWorklet.addModule('pitch-processor.js');
+    useWorklet = true;
+  } catch (e) {
+    console.warn('AudioWorklet unavailable, falling back to ScriptProcessor:', e);
+  }
+
+  if (useWorklet) {
+    const node = new AudioWorkletNode(state.audioCtx, 'pitch-processor');
+    node.port.onmessage = handlePitchMessage;
+    micSource.connect(node);
+    if (state.recDest) micSource.connect(state.recDest);
+    state.workletNode = node;
+  } else {
+    console.warn('Using ScriptProcessorNode fallback');
+    const sp  = state.audioCtx.createScriptProcessor(2048, 1, 1);
+    const buf = new Float32Array(2048);
+    sp.onaudioprocess = e => {
+      e.inputBuffer.copyFromChannel(buf, 0);
+      const pitch    = yinFallback(buf, state.audioCtx.sampleRate);
+      let midiNote   = -1;
+      if (pitch > 0) {
+        midiNote = Math.round(CONFIG.A4_MIDI + 12 * Math.log2(pitch / CONFIG.A4_HZ));
+        if (midiNote < CONFIG.MIDI_NOTE_MIN || midiNote > CONFIG.MIDI_NOTE_MAX) midiNote = -1;
+      }
+      let rms = 0;
+      for (let i = 0; i < buf.length; i++) rms += buf[i] * buf[i];
+      rms = Math.sqrt(rms / buf.length);
+      handlePitchMessage({ data: { hz: pitch, midiNote, rms } });
+    };
+    micSource.connect(sp);
+    sp.connect(state.audioCtx.destination);
+    if (state.recDest) micSource.connect(state.recDest);
+    state.workletNode = sp;
+  }
+}
+
+/** @returns {void} */
+function stopPitchDetection() {
+  if (state.workletNode) {
+    try { state.workletNode.disconnect(); } catch (e) { /* already disconnected */ }
+    state.workletNode = null;
+  }
+  if (state.micSource) {
+    try { state.micSource.disconnect(); } catch (e) { /* already disconnected */ }
+    state.micSource = null;
+  }
+  // Keep permittedMicStream alive to avoid re-requesting permission
+  state.micStream       = null;
+  state.detectedNote    = -1;
+  state.detectedRms     = 0;
+}
+
+/**
+ * YIN fallback used by ScriptProcessor path.
+ * @param {Float32Array} buf
+ * @param {number} sampleRate
+ * @returns {number}
+ */
+function yinFallback(buf, sampleRate) {
+  const N    = buf.length;
+  const half = N >> 1;
+  const yin  = new Float32Array(half);
+  for (let tau = 0; tau < half; tau++) {
+    let s = 0;
+    for (let j = 0; j < half; j++) { const d = buf[j] - buf[j + tau]; s += d * d; }
+    yin[tau] = s;
+  }
+  yin[0] = 1;
+  let run = 0;
+  for (let tau = 1; tau < half; tau++) { run += yin[tau]; yin[tau] = yin[tau] * tau / run; }
+  let tau = -1;
+  for (let t = 2; t < half; t++) {
+    if (yin[t] < 0.10) { // YIN threshold — matches worklet constant
+      while (t + 1 < half && yin[t + 1] < yin[t]) t++;
+      tau = t; break;
+    }
+  }
+  if (tau === -1) return 0;
+  let bt = tau;
+  if (tau > 0 && tau < half - 1) {
+    const s0 = yin[tau - 1], s1 = yin[tau], s2 = yin[tau + 1];
+    const d  = 2 * s1 - s0 - s2;
+    if (d !== 0) bt = tau + (s2 - s0) / (2 * d);
+  }
+  return sampleRate / bt;
+}
+
+/**
+ * Handle incoming pitch data from the AudioWorklet or ScriptProcessor fallback.
+ * @param {{ data: { midiNote:number, rms:number } }} e
+ * @returns {void}
+ */
+function handlePitchMessage(e) {
+  const { midiNote, rms } = e.data;
+  state.detectedNote = midiNote;
+  state.detectedRms  = rms || 0;
+  const vol = Math.min(rms * CONFIG.MIC_VOL_SCALE, 1) * 100;
+  ui.micVolumeFill.style.width = vol + '%';
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SECTION: SCORING ENGINE
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/** @returns {void} */
+function initScoring() {
+  state.noteVerdicts     = state.midiNotes.map(() => 'pending');
+  state.score            = 0;
+  state.judgedCount      = 0;
+  state._notePitchSamples = state.midiNotes.map(() => ({ hit: 0, near: 0, total: 0 }));
+  state.midiEndDialogShown = false;
+}
+
+/**
+ * @param {number} currentSec
+ * @returns {void}
+ */
+function updateScoring(currentSec) {
+  const notes    = state.midiNotes;
+  const verdicts = state.noteVerdicts;
+  const samples  = state._notePitchSamples;
+
+  for (let i = 0; i < notes.length; i++) {
+    const n = notes[i];
+    if (verdicts[i] !== 'pending') continue;
+    const transposedNote = n.noteNumber + state.transpose;
+
+    if (currentSec >= n.startSec && currentSec <= n.endSec) {
+      const det = state.detectedNote;
+      if (det > 0) {
+        samples[i].total++;
+        const diff = Math.abs(det - transposedNote);
+        if (diff <= CONFIG.HIT_SEMITONE_MAX)  samples[i].hit++;
+        else if (diff <= CONFIG.NEAR_SEMITONE_MAX) samples[i].near++;
+      }
+    }
+
+    if (currentSec > n.endSec) {
+      const s = samples[i];
+      if (s.total === 0) {
+        verdicts[i] = 'miss';
+      } else {
+        const hitRatio  = s.hit  / s.total;
+        const nearRatio = s.near / s.total;
+        if (hitRatio >= CONFIG.HIT_RATIO_MIN)                  verdicts[i] = 'hit';
+        else if ((hitRatio + nearRatio) >= CONFIG.NEAR_RATIO_MIN) verdicts[i] = 'near';
+        else                                                    verdicts[i] = 'miss';
+      }
+      if (verdicts[i] === 'hit')  state.score += CONFIG.SCORE_HIT;
+      if (verdicts[i] === 'near') state.score += CONFIG.SCORE_NEAR;
+      state.judgedCount++;
+      updateHUD();
+    }
+  }
+}
+
+/**
+ * @returns {{ hits:number, nears:number, misses:number, total:number, acc:number, stars:number }}
+ */
+function computeResults() {
+  const v      = state.noteVerdicts;
+  const hits   = v.filter(x => x === 'hit').length;
+  const nears  = v.filter(x => x === 'near').length;
+  const misses = v.filter(x => x === 'miss').length;
+  const total  = hits + nears + misses;
+  const acc    = total === 0 ? 0 : (hits + nears * 0.5) / total * 100;
+  let stars    = 0;
+  if      (acc >= CONFIG.STARS_3) stars = 3;
+  else if (acc >= CONFIG.STARS_2) stars = 2;
+  else if (acc >= CONFIG.STARS_1) stars = 1;
+  return { hits, nears, misses, total, acc, stars };
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SECTION: LYRICS ENGINE
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Distribute raw text tokens across note array.
+ * @param {string} rawText
+ * @param {Array} notes
+ * @returns {Array<{text:string, noteIndex:number}>}
+ */
+function buildLyricsFromText(rawText, notes) {
+  const tokens = rawText.trim().split(/\s+/).filter(t => t.length > 0);
+  if (!tokens.length || !notes.length) return [];
+  const assignments = new Array(notes.length).fill('');
+  if (tokens.length <= notes.length) {
+    const step = notes.length / tokens.length;
+    tokens.forEach((tok, i) => {
+      const idx = Math.min(Math.round(i * step), notes.length - 1);
+      assignments[idx] = (assignments[idx] + ' ' + tok).trim();
+    });
+  } else {
+    const wordsPerNote = tokens.length / notes.length;
+    tokens.forEach((tok, i) => {
+      const idx = Math.min(Math.floor(i / wordsPerNote), notes.length - 1);
+      assignments[idx] = (assignments[idx] + ' ' + tok).trim();
+    });
+  }
+  return assignments.map((text, i) => ({ text, noteIndex: i }));
+}
+
+/** Rebuild the lyrics side panel from state.rawLyricsText. @returns {void} */
+function renderLyricsPanel() {
+  _invalidateLyricsCache();
+  const panel   = document.getElementById('lyricsPanel');
+  const list    = document.getElementById('lyricsList');
+  const hasText = state.rawLyricsText && state.rawLyricsText.trim().length > 0;
+
+  if (!hasText) {
+    panel.classList.add('hidden');
+    list.innerHTML = '';
+    return;
+  }
+  panel.classList.toggle('hidden', !state.lyricsPanelVisible);
+
+  list.innerHTML = '';
+  const lines = state.rawLyricsText.split(/\n/).map(l => l.trim()).filter(l => l.length > 0);
+  lines.forEach((line, i) => {
+    const div = document.createElement('div');
+    div.className        = 'lyric-line upcoming';
+    div.dataset.lineIdx  = i;
+    div.textContent      = line;
+    list.appendChild(div);
+  });
+  state._lyricsLines     = lines;
+  state._lyricsLineCount = lines.length;
+  _applyLyricsFont();
+}
+
+/** @returns {void} */
+function _invalidateLyricsCache() {
+  lyricsCache.els        = null;
+  lyricsCache.list       = null;
+  lyricsCache.offsets    = null;
+  lyricsCache.lastActive = -1;
+}
+
+/** @returns {boolean} */
+function _ensureLyricsCache() {
+  if (lyricsCache.els) return true;
+  lyricsCache.list = document.getElementById('lyricsList');
+  if (!lyricsCache.list) return false;
+  const nodes = lyricsCache.list.querySelectorAll('.lyric-line[data-line-idx]');
+  if (!nodes.length) return false;
+  lyricsCache.els     = Array.from(nodes);
+  lyricsCache.offsets = lyricsCache.els.map(el => el.offsetTop);
+  return true;
+}
+
+/**
+ * @param {number} currentSec
+ * @returns {void}
+ */
+function updateLyricsHighlight(currentSec) {
+  if (!state.rawLyricsText) return;
+  if (!_ensureLyricsCache()) return;
+
+  const totalSec   = state.midiDurationSec || 1;
+  const progress   = Math.min(currentSec / totalSec, 1);
+  const lineCount  = state._lyricsLineCount || lyricsCache.els.length;
+  const activeLine = Math.floor(progress * lineCount);
+
+  if (activeLine === lyricsCache.lastActive) return;
+  lyricsCache.lastActive = activeLine;
+
+  lyricsCache.els.forEach(el => {
+    const i = parseInt(el.dataset.lineIdx, 10);
+    if      (i < activeLine)       el.className = 'lyric-line past';
+    else if (i === activeLine)     el.className = 'lyric-line active';
+    else                           el.className = 'lyric-line upcoming';
+  });
+
+  const elTop  = lyricsCache.offsets[activeLine] ?? 0;
+  const target = Math.max(0, elTop - lyricsCache.list.clientHeight * 0.25);
+  lyricsCache.list.scrollTop = target;
+}
+
+/** Open the per-note lyric edit overlay. @returns {void} */
+function openLyricsEdit() {
+  const container = document.getElementById('lyricsEditList');
+  container.innerHTML = '';
+  state.midiNotes.forEach((n, i) => {
+    const row      = document.createElement('div');
+    row.className  = 'lyric-edit-row';
+    const noteLabel    = midiNoteToName(n.noteNumber + state.transpose);
+    const timeLabel    = formatTime(n.startSec);
+    const assignedText = (state.lyrics[i] && state.lyrics[i].text) || '';
+    row.innerHTML = `
+      <span class="lyric-edit-note">${noteLabel}</span>
+      <span class="lyric-edit-time">${timeLabel}</span>
+      <input class="lyric-edit-input" type="text" value="${assignedText.replace(/"/g, '&quot;')}"
+             data-idx="${i}" placeholder="${t('lyricsEditPlaceholder')}">
+    `;
+    container.appendChild(row);
+  });
+  document.getElementById('lyricsEditOverlay').classList.remove('hidden');
+}
+
+/** Save edits from the lyric edit overlay back to state.lyrics. @returns {void} */
+function saveLyricsEdit() {
+  const inputs = document.querySelectorAll('.lyric-edit-input');
+  inputs.forEach(inp => {
+    const i = parseInt(inp.dataset.idx, 10);
+    if (!state.lyrics[i]) state.lyrics[i] = { text: '', noteIndex: i };
+    state.lyrics[i].text = inp.value.trim();
+  });
+  _closeLyricsEditOverlay();
+  renderLyricsPanel();
+}
+
+/** @returns {void} */
+function _closeLyricsEditOverlay() {
+  document.getElementById('lyricsEditOverlay').classList.add('hidden');
+}
+
+/** Toggle the lyrics side panel and on-tile text display. @returns {void} */
+function toggleLyricsPanel() {
+  state.lyricsPanelVisible  = !state.lyricsPanelVisible;
+  state.showLyricsOnTiles   = state.lyricsPanelVisible;
+  const panel   = document.getElementById('lyricsPanel');
+  const hasText = state.rawLyricsText && state.rawLyricsText.trim().length > 0;
+  panel.classList.toggle('hidden', !(state.lyricsPanelVisible && hasText));
+  ui.btnToggleLyrics.classList.toggle('active', state.lyricsPanelVisible);
+  showToast(state.lyricsPanelVisible ? t('toastLyricsOn') : t('toastLyricsOff'));
+}
+
+/** Apply current lyricsFontSize to the lyrics list element. @returns {void} */
+function _applyLyricsFont() {
+  const list = document.getElementById('lyricsList');
+  if (list) list.style.fontSize = lyricsFontSize + 'px';
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SECTION: RECORDING
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/** @returns {void} */
+function startRecording() {
+  if (!state.audioCtx) { showToast(t('toastNoAudio')); return; }
+
+  // Mixed recorder (phonogram + mic)
+  const dest = state.audioCtx.createMediaStreamDestination();
+  state.gainNode.connect(dest);
+  if (state.micSource) {
+    try { state.micSource.connect(dest); } catch (e) { console.warn('Mic connect to recDest failed:', e); }
+  }
+  state.recDest = dest;
+
+  const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+    ? 'audio/webm;codecs=opus' : 'audio/webm';
+  const mr = new MediaRecorder(dest.stream, { mimeType });
+  state.recChunks = [];
+  mr.ondataavailable = e => { if (e.data.size > 0) state.recChunks.push(e.data); };
+  mr.onstop = () => saveRecording();
+  mr.start(CONFIG.MEDIA_REC_SLICE);
+  state.recMediaRecorder = mr;
+
+  // Mic-only recorder (separate)
+  if (state.micSource) {
+    try {
+      const micDest = state.audioCtx.createMediaStreamDestination();
+      state.micSource.connect(micDest);
+      const micMr = new MediaRecorder(micDest.stream, { mimeType });
+      state.micRecChunks = [];
+      micMr.ondataavailable = e => { if (e.data.size > 0) state.micRecChunks.push(e.data); };
+      micMr.onstop = () => saveMicRecording();
+      micMr.start(CONFIG.MEDIA_REC_SLICE);
+      state.micRecMediaRecorder = micMr;
+    } catch (e) {
+      console.warn('Mic-only recorder failed:', e);
+    }
+  }
+
+  state.isRecording = true;
+  ui.btnRecord.textContent  = t('btnStopRecord');
+  ui.btnRecord.style.color  = '#f44336';
+  ui.recIndicator.classList.remove('hidden');
+  showToast(t('toastRecStart'));
+}
+
+/** @returns {void} */
+function stopRecording() {
+  if (!state.recMediaRecorder) return;
+  state.recMediaRecorder.stop();
+  // Disconnect gainNode from recDest to prevent accumulation (P0-2)
+  if (state.recDest) {
+    try { state.gainNode.disconnect(state.recDest); } catch (e) { /* already disconnected */ }
+    state.recDest = null;
+  }
+  if (state.micRecMediaRecorder) {
+    try { state.micRecMediaRecorder.stop(); } catch (e) { /* ignore */ }
+    state.micRecMediaRecorder = null;
+  }
+  state.isRecording         = false;
+  ui.btnRecord.textContent  = t('btnRecord');
+  ui.btnRecord.style.color  = '';
+  ui.recIndicator.classList.add('hidden');
+}
+
+/** @returns {void} */
+function saveRecording() {
+  if (!state.recChunks.length) return;
+  const blob     = new Blob(state.recChunks, { type: 'audio/webm' });
+  const url      = URL.createObjectURL(blob);
+  const a        = document.createElement('a');
+  const safeName = _safeName(state.songName || 'vocal-session');
+  a.href = url; a.download = `${safeName}-mixed.webm`;
+  a.click(); URL.revokeObjectURL(url);
+  showToast(t('toastRecMixed') + a.download);
+}
+
+/** @returns {void} */
+function saveMicRecording() {
+  if (!state.micRecChunks.length) return;
+  const blob     = new Blob(state.micRecChunks, { type: 'audio/webm' });
+  const url      = URL.createObjectURL(blob);
+  const a        = document.createElement('a');
+  const safeName = _safeName(state.songName || 'vocal-session');
+  a.href = url; a.download = `${safeName}-mic.webm`;
+  a.click(); URL.revokeObjectURL(url);
+  showToast(t('toastRecMic') + a.download);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SECTION: CANVAS RENDERER
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/** @returns {void} */
+function resizeCanvases() {
+  const wrap = document.getElementById('canvasWrap');
+  const w    = wrap.clientWidth;
+  const h    = wrap.clientHeight;
+  ui.noteCanvas.width  = w;
+  ui.noteCanvas.height = h;
+  state.noteCanvasW    = w;
+  state.noteCanvasH    = h;
+  ui.ovCanvas.width    = ui.ovCanvas.clientWidth  || 800;
+  ui.ovCanvas.height   = ui.ovCanvas.clientHeight || 44;
+  drawOverviewStrip();
+}
+
+/** Compute pitch display range from current MIDI notes + transpose. @returns {void} */
+function computePitchRange() {
+  if (!state.midiNotes.length) return;
+  let mn = Infinity, mx = -Infinity;
+  for (const n of state.midiNotes) {
+    const nn = n.noteNumber + state.transpose;
+    if (nn < mn) mn = nn;
+    if (nn > mx) mx = nn;
+  }
+  state.pitchRangeMin = mn - 3;
+  state.pitchRangeMax = mx + 3;
+}
+
+/**
+ * Map a MIDI note number to a canvas Y pixel position.
+ * @param {number} midiNote
+ * @returns {number}
+ */
+function noteToY(midiNote) {
+  const frac    = (midiNote - state.pitchRangeMin) / (state.pitchRangeMax - state.pitchRangeMin);
+  const usableH = state.noteCanvasH - CONFIG.NOTE_HEIGHT * 2;
+  return state.noteCanvasH - CONFIG.NOTE_HEIGHT - frac * usableH;
+}
+
+/**
+ * Draw a single note tile onto the given canvas context.
+ * Pure drawing — no business logic. (Architecture: canvas draw = no business logic)
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {number} x
+ * @param {number} y
+ * @param {number} w
+ * @param {string} verdict  'pending'|'hit'|'near'|'miss'
+ * @returns {void}
+ */
+function drawNoteTile(ctx, x, y, w, verdict) {
+  const vc        = CONFIG.VERDICT_COLORS[verdict] || CONFIG.VERDICT_COLORS.pending;
+  const r         = CONFIG.NOTE_RADIUS;
+  const h         = CONFIG.NOTE_HEIGHT;
+  const fillColor = vc.fill;
+  const glowColor = vc.glow;
+
+  if (glowColor) { ctx.shadowColor = glowColor; ctx.shadowBlur = 10; }
+  else           { ctx.shadowBlur  = 0; }
+
+  ctx.beginPath();
+  ctx.roundRect(x, y, Math.max(w, 4), h, r);
+  ctx.fillStyle = fillColor;
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  ctx.strokeStyle = verdict === 'pending' ? '#5060b0' : 'transparent';
+  ctx.lineWidth   = 1;
+  ctx.stroke();
+}
+
+/** Main render loop frame. @returns {void} */
+function renderFrame() {
+  if (!state.isPlaying && state.pausedAt === 0) {
+    noteCtx.clearRect(0, 0, state.noteCanvasW, state.noteCanvasH);
+    return;
+  }
+
+  const currentSec = state.isPlaying
+    ? (state.audioCtx ? state.audioCtx.currentTime - state.startedAt : 0)
+    : state.pausedAt;
+
+  if (state.isPlaying) {
+    updateScoring(currentSec);
+    updateLyricsHighlight(currentSec);
+
+    // Pre-note countdown: fires once when audio starts before first note
+    if (!state.preNoteCountdownFired && state.midiNotes.length) {
+      const firstNoteSec = state.midiNotes[0].startSec;
+      state.preNoteCountdownFired = true; // set before async call to prevent re-fire
+      if (firstNoteSec - currentSec > 0) {
+        runRealtimeCountdown(firstNoteSec);
+      }
+    }
+  }
+
+  const W       = state.noteCanvasW;
+  const H       = state.noteCanvasH;
+  const hitLineX = W * CONFIG.HIT_LINE_X_RATIO;
+  noteCtx.clearRect(0, 0, W, H);
+
+  // Grid lines
+  noteCtx.strokeStyle = 'rgba(255,255,255,0.04)';
+  noteCtx.lineWidth   = 1;
+  for (let note = Math.floor(state.pitchRangeMin); note <= Math.ceil(state.pitchRangeMax); note++) {
+    const y = noteToY(note);
+    noteCtx.beginPath();
+    noteCtx.moveTo(0, y + CONFIG.NOTE_HEIGHT / 2);
+    noteCtx.lineTo(W, y + CONFIG.NOTE_HEIGHT / 2);
+    noteCtx.stroke();
+  }
+
+  // Note tiles
+  noteCtx.save();
+  for (let i = 0; i < state.midiNotes.length; i++) {
+    const n       = state.midiNotes[i];
+    const nn      = n.noteNumber + state.transpose;
+    const secsFromNow = n.startSec - currentSec;
+    const tileX   = hitLineX + secsFromNow * CONFIG.SCROLL_SPEED;
+    const tileW   = n.durationSec * CONFIG.SCROLL_SPEED;
+    const tileY   = noteToY(nn);
+
+    if (tileX + tileW < -20 || tileX > W + 20) continue; // off-screen culling
+
+    const verdict = state.noteVerdicts[i] || 'pending';
+    drawNoteTile(noteCtx, tileX, tileY, tileW, verdict);
+
+    // Note name label (small, left of tile)
+    if (tileW > 28) {
+      noteCtx.shadowBlur  = 0;
+      noteCtx.fillStyle   = 'rgba(255,255,255,0.55)';
+      noteCtx.font        = 'bold 9px "Segoe UI",sans-serif';
+      noteCtx.textAlign   = 'left';
+      noteCtx.fillText(midiNoteToName(nn), tileX + 3, tileY + 11);
+    }
+
+    // Lyric text on tile
+    const lyricText = state.showLyricsOnTiles && state.lyrics[i] && state.lyrics[i].text;
+    if (lyricText && tileW > 16) {
+      noteCtx.shadowBlur = 0;
+      noteCtx.fillStyle  = 'rgba(255,255,255,0.92)';
+      noteCtx.font       = 'bold 11px "Segoe UI",sans-serif';
+      noteCtx.textAlign  = 'center';
+      noteCtx.save();
+      noteCtx.beginPath();
+      noteCtx.rect(tileX + 1, tileY, Math.max(tileW - 2, 1), CONFIG.NOTE_HEIGHT);
+      noteCtx.clip();
+      noteCtx.fillText(lyricText, tileX + tileW / 2, tileY + CONFIG.NOTE_HEIGHT - 4);
+      noteCtx.restore();
+    }
+  }
+  noteCtx.restore();
+
+  // Hit line
+  const grad = noteCtx.createLinearGradient(hitLineX - 2, 0, hitLineX + 2, 0);
+  grad.addColorStop(0,   'rgba(124,106,255,0)');
+  grad.addColorStop(0.5, 'rgba(124,106,255,0.9)');
+  grad.addColorStop(1,   'rgba(124,106,255,0)');
+  noteCtx.strokeStyle = grad;
+  noteCtx.lineWidth   = 2;
+  noteCtx.shadowColor = 'rgba(124,106,255,0.6)';
+  noteCtx.shadowBlur  = 8;
+  noteCtx.beginPath();
+  noteCtx.moveTo(hitLineX, 0);
+  noteCtx.lineTo(hitLineX, H);
+  noteCtx.stroke();
+  noteCtx.shadowBlur = 0;
+
+  // Pitch ball
+  const det = state.detectedNote;
+  if (det > 0) state.pitchBallTarget = noteToY(det) + CONFIG.NOTE_HEIGHT / 2;
+  state.pitchBallY += (state.pitchBallTarget - state.pitchBallY) * CONFIG.PITCH_LERP;
+  const ballOpacity = (state.detectedRms > parseFloat(ui.micSensSlider.value) && det > 0) ? 1 : 0.3;
+  noteCtx.shadowColor = `rgba(124,106,255,${ballOpacity * 0.6})`;
+  noteCtx.shadowBlur  = 18;
+  noteCtx.beginPath();
+  noteCtx.arc(hitLineX, state.pitchBallY, CONFIG.PITCH_BALL_R, 0, Math.PI * 2);
+  const ballGrad = noteCtx.createRadialGradient(
+    hitLineX - 4, state.pitchBallY - 4, 2,
+    hitLineX, state.pitchBallY, CONFIG.PITCH_BALL_R
+  );
+  ballGrad.addColorStop(0, `rgba(180,160,255,${ballOpacity})`);
+  ballGrad.addColorStop(1, `rgba(100,78,220,${ballOpacity})`);
+  noteCtx.fillStyle = ballGrad;
+  noteCtx.fill();
+  noteCtx.shadowBlur = 0;
+
+  // Progress bar
+  const progress = state.midiDurationSec > 0
+    ? Math.min(currentSec / state.midiDurationSec, 1) : 0;
+  noteCtx.fillStyle = 'rgba(124,106,255,0.2)';
+  noteCtx.fillRect(0, H - 3, W, 3);
+  noteCtx.fillStyle = 'rgba(124,106,255,0.7)';
+  noteCtx.fillRect(0, H - 3, W * progress, 3);
+
+  // Top bar time display
+  ui.topSongMeta.textContent = t('bpmMeta').replace('{bpm}', state.bpm).replace('{cur}', formatTime(currentSec)).replace('{total}', formatTime(state.midiDurationSec));
+
+  // Overview playhead
+  drawOverviewStrip(currentSec);
+
+  // End-of-MIDI check (once per session)
+  if (
+    state.isPlaying &&
+    !state.midiEndDialogShown &&
+    state.midiNotes.length &&
+    currentSec >= state.midiNotes[state.midiNotes.length - 1].endSec + CONFIG.MIDI_END_BUFFER
+  ) {
+    state.midiEndDialogShown = true;
+    const audioDur = state.audioBuffers.reduce((m, b) => Math.max(m, b.duration), 0);
+    if (audioDur > currentSec + CONFIG.AUDIO_TAIL_MARGIN) {
+      showEndMidiDialog();
+    } else {
+      onPlaybackEnded();
+      return;
+    }
+  }
+
+  // Full audio end
+  const fullEnd = state.audioBuffers.reduce((m, b) => Math.max(m, b.duration), state.midiDurationSec);
+  if (state.isPlaying && currentSec >= fullEnd + CONFIG.MIDI_END_BUFFER) {
+    onPlaybackEnded();
+  }
+}
+
+/**
+ * Draw the mini note-roll overview strip (and optionally the playhead).
+ * Pure drawing — reads state.pitchRangeMin/Max computed by computePitchRange(). (P1-3)
+ * @param {number} [currentSec=-1]
+ * @returns {void}
+ */
+function drawOverviewStrip(currentSec = -1) {
+  const W = ui.ovCanvas.width;
+  const H = ui.ovCanvas.height;
+  if (!W || !H) return;
+
+  ovCtx.clearRect(0, 0, W, H);
+  ovCtx.fillStyle = '#0d0d14';
+  ovCtx.fillRect(0, 0, W, H);
+
+  const totalDur = state.midiDurationSec || 60;
+
+  if (!state.midiNotes || !state.midiNotes.length) {
+    ovCtx.fillStyle = 'rgba(124,106,255,0.08)';
+    ovCtx.fillRect(0, 0, W, H);
+    ovCtx.fillStyle   = 'rgba(255,255,255,0.10)';
+    ovCtx.font        = '11px Segoe UI, sans-serif';
+    ovCtx.textAlign   = 'center';
+    ovCtx.fillText(t('overviewLabel'), W / 2, H / 2 + 4);
+    return;
+  }
+
+  // Use pre-computed pitch range (P1-3: removed duplicate loop)
+  // state.pitchRangeMin = actual_min - 3, so actual_min = state.pitchRangeMin + 3
+  // Original used: minNote = mn-1, maxNote = mx+1, range = max(mx-mn+2, 4)
+  const actualMin = state.pitchRangeMin + 3;
+  const actualMax = state.pitchRangeMax - 3;
+  const minNote = actualMin - 1;
+  const maxNote = actualMax + 1;
+  const range   = Math.max(actualMax - actualMin + 2, 4); // numerically identical to original
+  const pad     = 3;
+  const usableH = H - pad * 2;
+
+  for (let i = 0; i < state.midiNotes.length; i++) {
+    const n       = state.midiNotes[i];
+    const nn      = n.noteNumber + state.transpose;
+    const x       = (n.startSec / totalDur) * W;
+    const w       = Math.max((n.durationSec / totalDur) * W, 2);
+    const frac    = (nn - minNote) / (maxNote - minNote);
+    const noteH   = Math.max(2, Math.floor(usableH / range));
+    const y       = H - pad - Math.round(frac * (usableH - noteH)) - noteH;
+
+    const verdict = state.noteVerdicts[i] || 'pending';
+    ovCtx.fillStyle = CONFIG.VERDICT_COLORS[verdict]?.fill ?? CONFIG.VERDICT_COLORS.pending.fill;
+    ovCtx.fillRect(x, y, w, noteH);
+  }
+
+  if (currentSec >= 0 && totalDur > 0) {
+    const px = (currentSec / totalDur) * W;
+    ovCtx.fillStyle = 'rgba(255,255,255,0.9)';
+    ovCtx.fillRect(px - 1, 0, 2, H);
+    ovCtx.fillStyle = 'rgba(0,0,0,0.25)';
+    ovCtx.fillRect(0, 0, px, H);
+  }
+
+  // NOTE: preserved — possible dead code, verify before removing
+  // if (false) {
+  //   ovCtx.fillStyle = 'rgba(255,193,7,0.5)';
+  //   ovCtx.fillRect(0, H - 2, W, 2);
+  // }
+
+  ovCtx.fillStyle = 'rgba(255,255,255,0.15)';
+  ovCtx.font      = '10px Segoe UI, sans-serif';
+  ovCtx.textAlign = 'left';
+  ovCtx.fillText(t('overviewLabel'), 6, 12);
+}
+
+/** Start the render loop; cancels any existing loop first. @returns {void} */
+function startRenderLoop() {
+  if (rafId) cancelAnimationFrame(rafId);
+  function loop() { renderFrame(); rafId = requestAnimationFrame(loop); }
+  rafId = requestAnimationFrame(loop);
+}
+
+/** Stop the render loop and null the handle. @returns {void} */
+function stopRenderLoop() {
+  if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SECTION: COUNTDOWN
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Real-time countdown: ticks every COUNTDOWN_POLL_MS against audioCtx.currentTime.
+ * @param {number} firstNoteSec
+ * @returns {Promise<void>}
+ */
+async function runRealtimeCountdown(firstNoteSec) {
+  const overlay = document.getElementById('countdownOverlay');
+  const numEl   = document.getElementById('countdownNum');
+  if (state.countdownActive) return;
+  state.countdownActive = true;
+  overlay.classList.remove('hidden');
+
+  let lastShown = -1;
+  while (state.isPlaying && state.countdownActive) {
+    const nowSec   = state.audioCtx ? state.audioCtx.currentTime - state.startedAt : 0;
+    const secsLeft = firstNoteSec - nowSec;
+    if (secsLeft <= 0) break;
+
+    const display = Math.ceil(secsLeft);
+    if (display !== lastShown) {
+      lastShown = display;
+      numEl.textContent    = display;
+      numEl.style.animation = 'none';
+      void numEl.offsetWidth; // force reflow to restart animation
+      numEl.style.animation = 'countPulse 0.8s ease-out forwards';
+    }
+    await sleep(CONFIG.COUNTDOWN_POLL_MS);
+  }
+
+  if (state.isPlaying && state.countdownActive) {
+    numEl.textContent    = t('countdownGo');
+    numEl.style.animation = 'none';
+    void numEl.offsetWidth;
+    numEl.style.animation = 'countPulse 0.6s ease-out forwards';
+    await sleep(CONFIG.COUNTDOWN_GO_MS);
+  }
+  overlay.classList.add('hidden');
+  state.countdownActive = false;
+}
+
+/** Reset pre-note countdown flag and hide overlay. @returns {void} */
+function resetPreNoteCountdown() {
+  state.preNoteCountdownFired = false;
+  document.getElementById('countdownOverlay').classList.add('hidden');
+  state.countdownActive = false;
+}
+
+/** Cancel an in-progress countdown (e.g. on pause). @returns {void} */
+function cancelPreNoteCountdown() {
+  state.countdownActive = false;
+  document.getElementById('countdownOverlay').classList.add('hidden');
+}
+
+// NOTE: preserved — possible dead code, verify before removing
+// Legacy stub — replaced by runRealtimeCountdown
+async function runShortCountdown(/* countFrom */) {}
+
+/** @param {number} ms @returns {Promise<void>} */
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SECTION: RESULTS SCREEN
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/** @returns {void} */
+function showResults() {
+  const { hits, nears, misses, acc, stars } = computeResults();
+  ui.resultsSongName.textContent = state.songName || '';
+  ui.resultsAccPct.textContent   = acc.toFixed(1) + '%';
+  ui.resultsStars.textContent    = '★'.repeat(stars) + '☆'.repeat(3 - stars);
+  const maxBar = Math.max(hits, nears, misses, 1);
+  ui.barHit.style.width  = (hits  / maxBar * 100) + '%';
+  ui.barNear.style.width = (nears / maxBar * 100) + '%';
+  ui.barMiss.style.width = (misses / maxBar * 100) + '%';
+  ui.cntHit.textContent  = hits;
+  ui.cntNear.textContent = nears;
+  ui.cntMiss.textContent = misses;
+  ui.resultsOverlay.classList.remove('hidden');
+}
+
+/** @returns {void} */
+function hideResults() { ui.resultsOverlay.classList.add('hidden'); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SECTION: SHARE — offscreen screenshot
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/** @returns {void} */
+function saveResultsScreenshot() {
+  const { hits, nears, misses, acc, stars } = computeResults();
+  const W = CONFIG.SCREENSHOT_W;
+  const H = CONFIG.SCREENSHOT_H;
+  const offscreen = document.createElement('canvas');
+  offscreen.width  = W;
+  offscreen.height = H;
+  const ctx = offscreen.getContext('2d');
+
+  const bg = ctx.createLinearGradient(0, 0, W, H);
+  bg.addColorStop(0, '#0d0d20'); bg.addColorStop(1, '#1a0d2e');
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = 'rgba(124,106,255,0.08)';
+  ctx.beginPath(); ctx.arc(W * 0.8, H * 0.3, 200, 0, Math.PI * 2); ctx.fill();
+
+  if (state.songName) {
+    ctx.font      = 'italic 18px Segoe UI, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.textAlign = 'center';
+    ctx.fillText(state.songName, W / 2, 52);
+  }
+
+  ctx.font = 'bold 28px Segoe UI, sans-serif'; ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.textAlign = 'center'; ctx.fillText('Vocal Trainer — Результат', W / 2, 90);
+
+  ctx.font = '40px serif'; ctx.textAlign = 'center';
+  ctx.fillText('★'.repeat(stars) + '☆'.repeat(3 - stars), W / 2, 145);
+
+  ctx.font = 'bold 80px Segoe UI, sans-serif';
+  const accGrad = ctx.createLinearGradient(W / 2 - 80, 0, W / 2 + 80, 0);
+  accGrad.addColorStop(0, CONFIG.VERDICT_COLORS.hit.screenshot);
+  accGrad.addColorStop(1, '#7c6aff');
+  ctx.fillStyle = accGrad; ctx.textAlign = 'center';
+  ctx.fillText(acc.toFixed(1) + '%', W / 2, 230);
+
+  const barData = [
+    { label: t('barHit'),  val: hits,   color: CONFIG.VERDICT_COLORS.hit.screenshot  },
+    { label: t('barNear'), val: nears,  color: CONFIG.VERDICT_COLORS.near.screenshot },
+    { label: t('barMiss'), val: misses, color: CONFIG.VERDICT_COLORS.miss.screenshot },
+  ];
+  const maxBar   = Math.max(hits, nears, misses, 1);
+  const barX     = 80, barMaxW = 380, barH = 22, barGap = 8, startY = 258;
+  barData.forEach((b, i) => {
+    const y = startY + i * (barH + barGap);
+    ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(barX, y, barMaxW, barH);
+    ctx.fillStyle = b.color;                  ctx.fillRect(barX, y, b.val / maxBar * barMaxW, barH);
+    ctx.font = '13px Segoe UI, sans-serif'; ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.textAlign = 'right'; ctx.fillText(b.label, barX - 8, y + 16);
+    ctx.textAlign = 'left';  ctx.fillText(b.val, barX + b.val / maxBar * barMaxW + 6, y + 16);
+  });
+
+  ctx.font = '11px Segoe UI, sans-serif'; ctx.fillStyle = 'rgba(255,255,255,0.25)';
+  ctx.textAlign = 'center';
+  ctx.fillText('Created with Perplexity Computer · perplexity.ai/computer', W / 2, H - 12);
+
+  offscreen.toBlob(blob => {
+    const url      = URL.createObjectURL(blob);
+    const a        = document.createElement('a');
+    const safeName = _safeName(state.songName || 'vocal-result');
+    a.href = url; a.download = `${safeName}-result.png`;
+    a.click(); URL.revokeObjectURL(url);
+    showToast(t('toastScreenshot') + a.download);
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SECTION: METRONOME
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/** Schedule metronome clicks ahead using Web Audio API scheduling. @returns {void} */
+function scheduleMetronome() {
+  if (!state.audioCtx || !state.metronomeOn) return;
+  const beatDur  = 60 / (state.bpm || 120);
+  const lookahead = CONFIG.METRO_LOOKAHEAD;
+  const now      = state.audioCtx.currentTime;
+  let nextBeat   = state.metronomeScheduled;
+  if (nextBeat < now) nextBeat = now + 0.01;
+
+  while (nextBeat < now + lookahead + beatDur) {
+    scheduleClick(nextBeat);
+    nextBeat += beatDur;
+  }
+  state.metronomeScheduled = nextBeat;
+  metronomeTimerId = setTimeout(scheduleMetronome, Math.max(10, (lookahead * 1000) / 2));
+}
+
+/**
+ * Schedule a single metronome click at the given audioCtx time.
+ * AudioNodes disconnected via osc.onended to prevent leak. (P0-3)
+ * @param {number} time  audioCtx time in seconds
+ * @returns {void}
+ */
+function scheduleClick(time) {
+  if (!state.audioCtx) return;
+  const osc  = state.audioCtx.createOscillator();
+  const gain = state.audioCtx.createGain();
+  osc.connect(gain);
+  gain.connect(state.audioCtx.destination);
+  osc.frequency.value = CONFIG.METRO_FREQ_HZ;
+  osc.type            = 'sine';
+  gain.gain.setValueAtTime(0, time);
+  gain.gain.linearRampToValueAtTime(CONFIG.METRO_GAIN_PEAK, time + CONFIG.METRO_RAMP_UP);
+  gain.gain.exponentialRampToValueAtTime(CONFIG.METRO_GAIN_FLOOR, time + CONFIG.METRO_RAMP_DOWN);
+  osc.start(time);
+  osc.stop(time + CONFIG.METRO_STOP_AFTER);
+  // Disconnect both nodes when oscillator finishes to prevent AudioNode leak (P0-3)
+  osc.onended = () => {
+    try { osc.disconnect();  } catch (e) { /* already disconnected */ }
+    try { gain.disconnect(); } catch (e) { /* already disconnected */ }
+  };
+}
+
+/** @returns {void} */
+function stopMetronome() {
+  if (metronomeTimerId) { clearTimeout(metronomeTimerId); metronomeTimerId = null; }
+}
+
+/** @returns {void} */
+function toggleMetronome() {
+  state.metronomeOn = !state.metronomeOn;
+  ui.btnMetronome.classList.toggle('active', state.metronomeOn);
+  if (state.metronomeOn && state.isPlaying) {
+    state.metronomeScheduled = 0;
+    scheduleMetronome();
+    showToast(t('toastMetroOn'));
+  } else {
+    stopMetronome();
+    showToast(t('toastMetroOff'));
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SECTION: HELP MODAL
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/** @returns {void} */
+function showHelp() { document.getElementById('helpModal').classList.remove('hidden'); }
+/** @returns {void} */
+function hideHelp() { document.getElementById('helpModal').classList.add('hidden'); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SECTION: HUD
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/** Update the top-bar accuracy / score / note counters. @returns {void} */
+function updateHUD() {
+  const { total, acc } = computeResults();
+  ui.topAccuracy.textContent = total > 0 ? acc.toFixed(1) + '%' : t('hudAccNone');
+  ui.topScore.textContent    = state.score;
+  ui.topNotes.textContent    = `${state.judgedCount} / ${state.midiNotes.length}`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SECTION: PLAYBACK CONTROL
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/** @returns {Promise<void>} */
+async function play() {
+  await ensureAudioContext();
+  if (state.isPlaying) return;
+
+  // Allow countdown again if resuming before the first note
+  if (state.midiNotes.length && state.pausedAt < state.midiNotes[0].startSec) {
+    state.preNoteCountdownFired = false;
+  }
+
+  const offset = state.pausedAt;
+  startAudioPlayback(offset / state.playbackRate);
+  state.isPlaying = true;
+  updatePlayButton();
+  await startPitchDetection();
+  if (state.metronomeOn) scheduleMetronome();
+}
+
+/** @returns {Promise<void>} */
+async function pause() {
+  if (!state.isPlaying) return;
+  state.pausedAt  = state.audioCtx.currentTime - state.startedAt;
+  stopAudioPlayback();
+  state.isPlaying = false;
+  updatePlayButton();
+  stopMetronome();
+  cancelPreNoteCountdown();
+}
+
+/** @returns {Promise<void>} */
+async function stopAndShowResults() {
+  stopAudioPlayback();
+  stopPitchDetection();
+  if (state.isRecording) stopRecording();
+  stopMetronome();
+  cancelPreNoteCountdown();
+  state.isPlaying   = false;
+  state.pausedAt    = 0;
+  updatePlayButton();
+  state.noteVerdicts = state.noteVerdicts.map(v => v === 'pending' ? 'miss' : v);
+  state.judgedCount  = state.noteVerdicts.length;
+  updateHUD();
+  showResults();
+}
+
+/** @returns {Promise<void>} */
+async function restart() {
+  stopAudioPlayback();
+  stopPitchDetection();
+  stopMetronome();
+  cancelPreNoteCountdown();
+  state.isPlaying            = false;
+  state.pausedAt             = 0;
+  state.preNoteCountdownFired = false;
+  initScoring();
+  state.pitchBallY      = state.noteCanvasH / 2;
+  state.pitchBallTarget = state.noteCanvasH / 2;
+  updateHUD();
+  hideResults();
+  hideEndMidiDialog();
+  updatePlayButton();
+  renderFrame();
+
+  await ensureAudioContext();
+  startAudioPlayback(0);
+  state.isPlaying = true;
+  updatePlayButton();
+  await startPitchDetection();
+  if (state.metronomeOn) scheduleMetronome();
+  showToast(t('toastRestarted'));
+}
+
+/** @returns {void} */
+function onPlaybackEnded() {
+  stopAudioPlayback();
+  stopPitchDetection();
+  if (state.isRecording) stopRecording();
+  stopMetronome();
+  state.isPlaying = false;
+  state.pausedAt  = state.midiDurationSec;
+  updatePlayButton();
+  showResults();
+}
+
+/** @returns {void} */
+function showEndMidiDialog() {
+  pause();
+  document.getElementById('endMidiDialog').classList.remove('hidden');
+}
+/** @returns {void} */
+function hideEndMidiDialog() { document.getElementById('endMidiDialog').classList.add('hidden'); }
+
+/** @returns {void} */
+function updatePlayButton() {
+  ui.playIcon.style.display  = state.isPlaying ? 'none' : '';
+  ui.pauseIcon.style.display = state.isPlaying ? ''     : 'none';
+  ui.btnPlay.classList.toggle('active', state.isPlaying);
+}
+
+/**
+ * @param {number} rate
+ * @returns {void}
+ */
+function setPlaybackRate(rate) {
+  const wasPlaying = state.isPlaying;
+  const pos        = state.isPlaying
+    ? (state.audioCtx.currentTime - state.startedAt) : state.pausedAt;
+  state.playbackRate = rate;
+  if (wasPlaying) { stopAudioPlayback(); state.pausedAt = pos; state.isPlaying = false; play(); }
+}
+
+/** Return to the load screen, stopping all active subsystems. @returns {void} */
+function returnToLoadScreen() {
+  pause();
+  stopPitchDetection();
+  if (state.isRecording) stopRecording();
+  stopMetronome();
+  cancelPreNoteCountdown();
+  stopRenderLoop();
+  ui.appShell.classList.add('hidden');
+  ui.loadScreen.classList.remove('hidden');
+  ui.startBtn.disabled    = false;
+  ui.startBtn.textContent = t('startBtn');
+  noteCtx.clearRect(0, 0, state.noteCanvasW, state.noteCanvasH);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SECTION: KARAOKE SAVE / LOAD
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/** @returns {Promise<void>} */
+async function saveKaraoke() {
+  if (savingKaraoke)          { showToast(t('toastSaving')); return; }
+  if (!state.midiNotes.length){ showToast(t('toastNoData')); return; }
+  savingKaraoke = true;
+
+  const safeName  = _safeName(state.songName || 'vocal-trainer');
+  const btnSave   = document.getElementById('btnSaveKaraoke');
+  const btnSave2  = document.getElementById('btnResultsSaveKaraoke');
+  if (btnSave)  btnSave.disabled  = true;
+  if (btnSave2) btnSave2.disabled = true;
+
+  // Step 1: open native dialog IMMEDIATELY in user-gesture context
+  let fileHandle = null;
+  if (window.showSaveFilePicker) {
+    try {
+      fileHandle = await window.showSaveFilePicker({
+        suggestedName: safeName + '.vkt',
+        types: [{ description: 'Vocal Trainer Project', accept: { 'application/octet-stream': ['.vkt'] } }],
+      });
+    } catch (e) {
+      if (e.name === 'AbortError') {
+        savingKaraoke = false;
+        if (btnSave)  btnSave.disabled  = false;
+        if (btnSave2) btnSave2.disabled = false;
+        return;
+      }
+      console.warn('showSaveFilePicker error, falling back to download:', e);
+    }
+  }
+
+  // Step 2: show progress UI
+  const overlay = document.getElementById('saveProgressOverlay');
+  const fill    = document.getElementById('saveProgressFill');
+  const label   = document.getElementById('saveProgressLabel');
+  overlay.classList.remove('hidden');
+
+  /** @param {number} pct @param {string} msg @returns {void} */
+  function setProgress(pct, msg) { fill.style.width = pct + '%'; label.textContent = msg; }
+
+  // Yield to browser to repaint progress bar
+  const tick = () => new Promise(r => setTimeout(r, 0));
+
+  try {
+    setProgress(5, t('saveEncodingMidi')); await tick();
+
+    const noteBindings = state.midiNotes.map((_, i) => (state.lyrics[i] && state.lyrics[i].text) || '');
+    const midiB64      = arrayBufferToBase64(state._rawMidiBuffer);
+
+    setProgress(15, t('saveEncodingAudio')); await tick();
+
+    const audioBase64  = [];
+    const totalBufs    = state.audioBuffers.length;
+    for (let bi = 0; bi < totalBufs; bi++) {
+      const buf  = state.audioBuffers[bi];
+      const name = (state.audioFileNames && state.audioFileNames[bi]) || ('audio' + bi + '.wav');
+      setProgress(15 + Math.round(70 * bi / totalBufs), t('saveAudioProgress').replace('{n}', bi+1).replace('{total}', totalBufs).replace('{name}', name));
+      await tick();
+      const wav = await new Promise(resolve => setTimeout(() => resolve(audioBufferToWav(buf)), 0));
+      const b64 = arrayBufferToBase64(wav);
+      audioBase64.push({ name, data: b64 });
+      setProgress(15 + Math.round(70 * (bi + 1) / totalBufs), t('saveAudioDone').replace('{n}', bi+1).replace('{total}', totalBufs));
+      await tick();
+    }
+
+    setProgress(88, t('savePacking')); await tick();
+
+    const project = {
+      version     : 1,
+      songName    : state.songName || '',
+      lyricsText  : state.rawLyricsText || '',
+      noteBindings,
+      midiFileName: state._rawMidiFileName || 'vocal.mid',
+      midi        : midiB64,
+      audio       : audioBase64,
+    };
+    const json = JSON.stringify(project);
+    const blob = new Blob([json], { type: 'application/octet-stream' });
+
+    setProgress(95, t('saveWriting')); await tick();
+
+    if (fileHandle) {
+      const writable = await fileHandle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      setProgress(100, t('saveDone')); await tick();
+      showToast(t('toastSaved') + fileHandle.name);
+    } else {
+      const url = URL.createObjectURL(blob);
+      const a   = document.createElement('a');
+      a.href = url; a.download = safeName + '.vkt';
+      a.click(); URL.revokeObjectURL(url);
+      setProgress(100, t('saveDownloaded')); await tick();
+      showToast(t('toastDownloaded') + a.download);
+    }
+  } catch (err) {
+    console.error('saveKaraoke error:', err);
+    showToast(t('toastSaveError') + err.message);
+  } finally {
+    await new Promise(r => setTimeout(r, 600));
+    overlay.classList.add('hidden');
+    savingKaraoke = false;
+    if (btnSave)  btnSave.disabled  = false;
+    if (btnSave2) btnSave2.disabled = false;
+  }
+}
+
+/**
+ * @param {File} file
+ * @returns {Promise<void>}
+ */
+async function loadKaraokeFile(file) {
+  try {
+    const text    = await file.text();
+    const project = JSON.parse(text);
+    if (!project.version || !project.audio || !project.midi) {
+      showToast(t('toastBadVkt')); return;
+    }
+    document.getElementById('songNameInput').value = project.songName  || '';
+    document.getElementById('lyricsInput').value   = project.lyricsText || '';
+
+    _setMidiFile(base64ToArrayBuffer(project.midi), project.midiFileName || 'vocal.mid');
+
+    const audioFiles = [];
+    for (const a of project.audio) {
+      const ab   = base64ToArrayBuffer(a.data);
+      const blob = new Blob([ab], { type: 'audio/wav' });
+      audioFiles.push(new File([blob], a.name, { type: 'audio/wav' }));
+    }
+    state.load.pendingAudioFiles = audioFiles;
+    document.getElementById('audioFilesList').textContent = audioFiles.map(f => f.name).join(', ');
+    document.getElementById('audioDropZone').classList.add('loaded');
+
+    state._pendingNoteBindings = project.noteBindings || [];
+    _checkStartReady();
+    document.getElementById('karaokeFileName').textContent = file.name;
+    document.getElementById('karaokeZone').classList.add('loaded');
+    showToast(t('toastLoaded') + (project.songName || file.name));
+  } catch (e) {
+    console.error('loadKaraokeFile error:', e);
+    showToast(t('toastLoadError') + e.message);
+  }
+}
+
+/**
+ * @param {ArrayBuffer} buffer
+ * @returns {string}
+ */
+function arrayBufferToBase64(buffer) {
+  const bytes  = new Uint8Array(buffer);
+  let binary   = '';
+  for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
+}
+
+/**
+ * @param {string} b64
+ * @returns {ArrayBuffer}
+ */
+function base64ToArrayBuffer(b64) {
+  const binary = atob(b64);
+  const bytes  = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
+}
+
+/**
+ * Encode a Web Audio API AudioBuffer to a PCM WAV ArrayBuffer.
+ * @param {AudioBuffer} audioBuffer
+ * @returns {ArrayBuffer}
+ */
+function audioBufferToWav(audioBuffer) {
+  const numCh      = audioBuffer.numberOfChannels;
+  const sr         = audioBuffer.sampleRate;
+  const length     = audioBuffer.length;
+  const bps        = 16;
+  const blockAlign = numCh * (bps / 8);
+  const byteRate   = sr * blockAlign;
+  const dataBytes  = length * blockAlign;
+  const buf        = new ArrayBuffer(44 + dataBytes);
+  const view       = new DataView(buf);
+
+  function ws(off, str) { for (let i = 0; i < str.length; i++) view.setUint8(off + i, str.charCodeAt(i)); }
+  ws(0, 'RIFF'); view.setUint32(4,  36 + dataBytes,  true); ws(8, 'WAVE'); ws(12, 'fmt ');
+  view.setUint32(16, 16,         true);
+  view.setUint16(20,  1,         true); // PCM
+  view.setUint16(22, numCh,      true);
+  view.setUint32(24, sr,         true);
+  view.setUint32(28, byteRate,   true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, bps,        true);
+  ws(36, 'data'); view.setUint32(40, dataBytes, true);
+
+  let off = 44;
+  for (let i = 0; i < length; i++) {
+    for (let ch = 0; ch < numCh; ch++) {
+      const s = Math.max(-1, Math.min(1, audioBuffer.getChannelData(ch)[i]));
+      view.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+      off += 2;
+    }
+  }
+  return buf;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SECTION: FILE LOAD HELPERS (P1-5, P1-6, P1-7)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Store a MIDI file's ArrayBuffer in both load staging and state. (P1-7)
+ * @param {ArrayBuffer} ab
+ * @param {string} name
+ * @returns {void}
+ */
+function _setMidiFile(ab, name) {
+  state.load.pendingMidiBuffer  = ab;
+  state._rawMidiBuffer          = ab;
+  state._rawMidiFileName        = name;
+  document.getElementById('midiFileName').textContent = name;
+  document.getElementById('midiDropZone').classList.add('loaded');
+  _checkStartReady();
+}
+
+/**
+ * Auto-fill the song name field from a filename if not already set. (P1-6)
+ * @param {File} file
+ * @returns {void}
+ */
+function _autoFillSongName(file) {
+  const si = document.getElementById('songNameInput');
+  if (!si.value.trim()) si.value = file.name.replace(/\.[^.]+$/, '');
+}
+
+/** Enable/disable the Start button based on load state. @returns {void} */
+function _checkStartReady() {
+  ui.startBtn.disabled = !(state.load.pendingAudioFiles.length > 0 && state.load.pendingMidiBuffer !== null);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SECTION: UI WIRING — event listeners
+   All listeners added once here; none are added in playback paths.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+// ── File pickers ──────────────────────────────────────────────────────────
+ui.audioFileInput.addEventListener('change', e => {
+  if (!e.target.files.length) return;
+  state.load.pendingAudioFiles = Array.from(e.target.files);
+  document.getElementById('audioFilesList').textContent =
+    state.load.pendingAudioFiles.map(f => f.name).join(', ');
+  document.getElementById('audioDropZone').classList.add('loaded');
+  _autoFillSongName(state.load.pendingAudioFiles[0]);
+  _checkStartReady();
+});
+
+ui.midiFileInput.addEventListener('change', e => {
+  if (!e.target.files[0]) return;
+  const file = e.target.files[0];
+  file.arrayBuffer().then(ab => _setMidiFile(ab, file.name));
+});
+
+// ── Audio drag-and-drop ───────────────────────────────────────────────────
+document.getElementById('audioDropZone').addEventListener('dragover', e => {
+  e.preventDefault();
+  document.getElementById('audioDropZone').classList.add('drag-over');
+});
+document.getElementById('audioDropZone').addEventListener('dragleave', () => {
+  document.getElementById('audioDropZone').classList.remove('drag-over');
+});
+document.getElementById('audioDropZone').addEventListener('drop', e => {
+  e.preventDefault();
+  document.getElementById('audioDropZone').classList.remove('drag-over');
+  const files = Array.from(e.dataTransfer.files)
+    .filter(f => f.type.startsWith('audio/') || f.name.endsWith('.wav') || f.name.endsWith('.mp3'));
+  if (!files.length) { showToast(t('toastDragAudio')); return; }
+  state.load.pendingAudioFiles = files;
+  document.getElementById('audioFilesList').textContent = files.map(f => f.name).join(', ');
+  document.getElementById('audioDropZone').classList.add('loaded');
+  _autoFillSongName(files[0]);
+  _checkStartReady();
+});
+
+// ── MIDI drag-and-drop ────────────────────────────────────────────────────
+document.getElementById('midiDropZone').addEventListener('dragover', e => {
+  e.preventDefault();
+  document.getElementById('midiDropZone').classList.add('drag-over');
+});
+document.getElementById('midiDropZone').addEventListener('dragleave', () => {
+  document.getElementById('midiDropZone').classList.remove('drag-over');
+});
+document.getElementById('midiDropZone').addEventListener('drop', e => {
+  e.preventDefault();
+  document.getElementById('midiDropZone').classList.remove('drag-over');
+  const file = Array.from(e.dataTransfer.files).find(f => f.name.endsWith('.mid') || f.name.endsWith('.midi'));
+  if (!file) { showToast(t('toastDragMidi')); return; }
+  file.arrayBuffer().then(ab => _setMidiFile(ab, file.name));
+});
+
+// ── Start button ──────────────────────────────────────────────────────────
+ui.startBtn.addEventListener('click', async () => {
+  const { pendingAudioFiles, pendingMidiBuffer } = state.load;
+  if (!pendingAudioFiles.length || !pendingMidiBuffer) return;
+
+  ui.startBtn.disabled    = true;
+  ui.startBtn.textContent = t('loadingBtn');
+  try {
+    await ensureAudioContext();
+    state.audioBuffers   = await decodeAudioFiles(pendingAudioFiles);
+    state.audioFileNames = pendingAudioFiles.map(f => f.name);
+    if (!state.audioBuffers.length) throw new Error(t('toastNoAudioDec'));
+
+    const midi       = parseMidi(pendingMidiBuffer);
+    state.midiNotes  = midi.notes;
+    state.bpm        = midi.bpm;
+    state.preNoteCountdownFired = false;
+    ui.bpmInput.value = state.bpm;
+    state.midiDurationSec = Math.max(
+      midi.totalDuration,
+      state.audioBuffers.reduce((m, b) => Math.max(m, b.duration), 0)
+    );
+    if (!state.midiNotes.length) throw new Error(t('toastNoMidi'));
+
+    state.songName = document.getElementById('songNameInput').value.trim()
+      || state.audioFileNames[0].replace(/\.[^.]+$/, '');
+    ui.topSongTitle.textContent = state.songName;
+
+    // Build lyrics
+    const rawLyrics       = document.getElementById('lyricsInput').value.trim();
+    state.rawLyricsText   = rawLyrics;
+    if (rawLyrics) {
+      state.lyrics             = buildLyricsFromText(rawLyrics, state.midiNotes);
+      state.lyricsPanelVisible = true;
+    } else {
+      state.lyrics             = [];
+      state.lyricsPanelVisible = false;
+    }
+
+    // Apply per-note bindings from a loaded .vkt project
+    if (state._pendingNoteBindings && state._pendingNoteBindings.length) {
+      state._pendingNoteBindings.forEach((txt, i) => {
+        if (txt) {
+          if (!state.lyrics[i]) state.lyrics[i] = { text: '', noteIndex: i };
+          state.lyrics[i].text = txt;
+        }
+      });
+      if (!rawLyrics) {
+        state.rawLyricsText      = state._pendingNoteBindings.filter(t => t).join('\n');
+        state.lyricsPanelVisible = true;
+      }
+      state._pendingNoteBindings = [];
+    }
+
+    initScoring();
+    computePitchRange();
+    ui.loadScreen.classList.add('hidden');
+    ui.appShell.classList.remove('hidden');
+    resizeCanvases();
+    renderLyricsPanel();
+    drawOverviewStrip();
+    startRenderLoop();
+
+    startAudioPlayback(0);
+    state.isPlaying = true;
+    updatePlayButton();
+    await startPitchDetection();
+    if (state.metronomeOn) scheduleMetronome();
+    showToast(t('toastStarted'));
+  } catch (err) {
+    console.error('Start error:', err);
+    showToast(t('toastStartError') + err.message);
+    ui.startBtn.disabled    = false;
+    ui.startBtn.textContent = t('startBtn');
+  }
+});
+
+// ── Transport ─────────────────────────────────────────────────────────────
+ui.btnPlay.addEventListener('click',    () => state.isPlaying ? pause() : play());
+ui.btnStop.addEventListener('click',    () => stopAndShowResults());
+ui.btnRestart.addEventListener('click', () => restart());
+ui.backToLoad.addEventListener('click', () => returnToLoadScreen());
+
+// ── Results ───────────────────────────────────────────────────────────────
+ui.resultsPlayAgain.addEventListener('click', () => { hideResults(); restart(); });
+ui.resultsNewSong.addEventListener(  'click', () => { hideResults(); returnToLoadScreen(); });
+ui.resultsShare.addEventListener(    'click', () => saveResultsScreenshot());
+document.getElementById('btnResultsSaveKaraoke').addEventListener('click', () => saveKaraoke());
+
+// ── End-of-MIDI dialog ────────────────────────────────────────────────────
+document.getElementById('btnEndYes').addEventListener('click', () => { hideEndMidiDialog(); onPlaybackEnded(); });
+document.getElementById('btnEndNo').addEventListener( 'click', () => { hideEndMidiDialog(); play(); });
+
+// ── Lyrics ────────────────────────────────────────────────────────────────
+document.getElementById('btnEditLyrics').addEventListener(   'click', () => openLyricsEdit());
+document.getElementById('btnLyricsSave').addEventListener(   'click', () => saveLyricsEdit());
+document.getElementById('btnLyricsCancel').addEventListener( 'click', () => _closeLyricsEditOverlay());
+document.getElementById('btnHideLyricsPanel').addEventListener('click', () => {
+  state.lyricsPanelVisible = false;
+  state.showLyricsOnTiles  = false;
+  document.getElementById('lyricsPanel').classList.add('hidden');
+  ui.btnToggleLyrics.classList.remove('active');
+  showToast(t('toastLyricsOff'));
+});
+ui.btnToggleLyrics.addEventListener('click', () => toggleLyricsPanel());
+
+// ── Recording ─────────────────────────────────────────────────────────────
+ui.btnRecord.addEventListener('click', () => state.isRecording ? stopRecording() : startRecording());
+
+// ── Metronome ─────────────────────────────────────────────────────────────
+ui.btnMetronome.addEventListener('click', () => toggleMetronome());
+ui.bpmInput.addEventListener('change', () => {
+  const v = parseInt(ui.bpmInput.value, 10);
+  if (isNaN(v) || v < 20 || v > 300) { ui.bpmInput.value = state.bpm; return; }
+  state.bpm = v;
+  if (state.metronomeOn && state.isPlaying) {
+    stopMetronome();
+    state.metronomeScheduled = 0;
+    scheduleMetronome();
+  }
+  showToast(t('toastBpmChanged') + v);
+});
+ui.bpmInput.addEventListener('input', () => {
+  const v = parseInt(ui.bpmInput.value, 10);
+  if (!isNaN(v) && v >= 20 && v <= 300) state.bpm = v;
+});
+
+// ── Help ──────────────────────────────────────────────────────────────────
+document.getElementById('btnHelp').addEventListener(     'click', () => showHelp());
+document.getElementById('btnHelpClose').addEventListener('click', () => hideHelp());
+document.getElementById('helpModal').addEventListener(   'click', e => {
+  if (e.target === document.getElementById('helpModal')) hideHelp();
+});
+
+// ── Sliders ───────────────────────────────────────────────────────────────
+ui.volumeSlider.addEventListener('input', () => {
+  if (state.gainNode) state.gainNode.gain.value = parseFloat(ui.volumeSlider.value);
+});
+ui.micSensSlider.addEventListener('input', () => {
+  if (state.workletNode && state.workletNode.port) {
+    state.workletNode.port.postMessage({ type: 'threshold', value: parseFloat(ui.micSensSlider.value) });
+  }
+});
+ui.transposeSlider.addEventListener('input', () => {
+  state.transpose = parseInt(ui.transposeSlider.value, 10);
+  ui.transposeValue.textContent = state.transpose > 0 ? '+' + state.transpose : state.transpose;
+  computePitchRange();
+  initScoring();
+  drawOverviewStrip();
+});
+
+// ── Speed mode ────────────────────────────────────────────────────────────
+document.getElementById('modePerf').addEventListener('click', () => {
+  setPlaybackRate(1.0);
+  document.getElementById('modePerf').classList.add('active');
+  document.getElementById('modePract').classList.remove('active');
+});
+document.getElementById('modePract').addEventListener('click', () => {
+  setPlaybackRate(0.75);
+  document.getElementById('modePract').classList.add('active');
+  document.getElementById('modePerf').classList.remove('active');
+});
+
+// ── Overview canvas seek ──────────────────────────────────────────────────
+ui.ovCanvas.addEventListener('click', e => {
+  if (!state.midiNotes.length) return;
+  const rect   = ui.ovCanvas.getBoundingClientRect();
+  const clickX = e.clientX - rect.left;
+  const ratio  = clickX / (ui.ovCanvas.clientWidth || ui.ovCanvas.width);
+  const seekSec = ratio * state.midiDurationSec;
+  state.pausedAt = Math.max(0, Math.min(seekSec, state.midiDurationSec));
+  if (state.midiNotes.length && state.pausedAt < state.midiNotes[0].startSec) {
+    state.preNoteCountdownFired = false;
+  }
+  if (state.isPlaying) {
+    stopAudioPlayback();
+    startAudioPlayback(state.pausedAt / state.playbackRate);
+    state.startedAt = state.audioCtx.currentTime - state.pausedAt;
+  }
+  drawOverviewStrip(state.pausedAt);
+  showToast(t('toastSeekPos') + formatTime(state.pausedAt));
+});
+
+// ── Lyrics panel drag-resize ──────────────────────────────────────────────
+(function () {
+  const panel  = document.getElementById('lyricsPanel');
+  const handle = document.getElementById('lyricsDragHandle');
+  let dragging = false, startX = 0, startW = 0;
+
+  handle.addEventListener('mousedown', e => {
+    if (panel.classList.contains('hidden')) return;
+    e.preventDefault();
+    dragging = true;
+    startX   = e.clientX;
+    startW   = panel.offsetWidth;
+    handle.classList.add('dragging');
+    document.body.style.cursor     = 'col-resize';
+    document.body.style.userSelect = 'none';
+  });
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    const delta = startX - e.clientX;
+    const newW  = Math.min(520, Math.max(120, startW + delta));
+    panel.style.flex  = 'none';
+    panel.style.width = newW + 'px';
+  });
+  document.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    handle.classList.remove('dragging');
+    document.body.style.cursor     = '';
+    document.body.style.userSelect = '';
+  });
+}());
+
+// ── Lyrics font size ──────────────────────────────────────────────────────
+document.getElementById('btnLyricsFontDown').addEventListener('click', () => {
+  lyricsFontSize = Math.max(CONFIG.LYRICS_FONT_MIN, lyricsFontSize - CONFIG.LYRICS_FONT_STEP);
+  _applyLyricsFont();
+});
+document.getElementById('btnLyricsFontUp').addEventListener('click', () => {
+  lyricsFontSize = Math.min(CONFIG.LYRICS_FONT_MAX, lyricsFontSize + CONFIG.LYRICS_FONT_STEP);
+  _applyLyricsFont();
+});
+
+// ── Karaoke save/load ─────────────────────────────────────────────────────
+document.getElementById('btnSaveKaraoke').addEventListener('click', () => saveKaraoke());
+const karaokeFileInput = document.getElementById('karaokeFileInput');
+const karaokeZone      = document.getElementById('karaokeZone');
+karaokeFileInput.addEventListener('change', e => { if (e.target.files[0]) loadKaraokeFile(e.target.files[0]); });
+karaokeZone.addEventListener('dragover',  e => { e.preventDefault(); karaokeZone.classList.add('drag-over'); });
+karaokeZone.addEventListener('dragleave', () => karaokeZone.classList.remove('drag-over'));
+karaokeZone.addEventListener('drop', e => {
+  e.preventDefault();
+  karaokeZone.classList.remove('drag-over');
+  const file = Array.from(e.dataTransfer.files).find(f => f.name.endsWith('.vkt'));
+  if (file) loadKaraokeFile(file); else showToast(t('toastDragVkt'));
+});
+
+
+// ── Language switcher ─────────────────────────────────────────────────────
+document.querySelectorAll('.lang-btn').forEach(btn => {
+  btn.addEventListener('click', () => setLang(btn.dataset.lang));
+});
+
+// ── Keyboard shortcuts ────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+  if (e.code === 'Escape') {
+    hideHelp();
+    _closeLyricsEditOverlay();
+    return;
+  }
+  if (ui.appShell.classList.contains('hidden')) return;
+  if (!ui.resultsOverlay.classList.contains('hidden')) return; // block while results shown
+
+  if (e.code === 'Space') {
+    e.preventDefault();
+    state.isPlaying ? pause() : play();
+  }
+  if (e.code === 'KeyR') restart();
+  if (e.code === 'KeyT') {
+    state.transpose = ((state.transpose + 1 + 7) % 13) - 6;
+    ui.transposeSlider.value = state.transpose;
+    ui.transposeValue.textContent = state.transpose > 0 ? '+' + state.transpose : state.transpose;
+    computePitchRange();
+    initScoring();
+    drawOverviewStrip();
+  }
+  if (e.code === 'KeyM') toggleMetronome();
+  if (e.code === 'KeyL') toggleLyricsPanel();
+  if (e.key === '?' || e.code === 'Slash') showHelp();
+
+  if (e.code === 'ArrowLeft' || e.code === 'ArrowRight') {
+    e.preventDefault();
+    const wasPlaying = state.isPlaying;
+    const dir        = e.code === 'ArrowRight' ? 1 : -1;
+    if (wasPlaying) pause();
+    state.pausedAt = Math.max(0, Math.min(state.midiDurationSec, state.pausedAt + dir * CONFIG.SEEK_STEP_SEC));
+    if (state.midiNotes.length && state.pausedAt < state.midiNotes[0].startSec) {
+      state.preNoteCountdownFired = false;
+    } else {
+      state.preNoteCountdownFired = true;
+    }
+    drawOverviewStrip(state.pausedAt);
+    showToast((dir > 0 ? '→ ' : '← ') + formatTime(state.pausedAt));  // direction arrow intentionally kept as symbol
+    if (wasPlaying) play();
+  }
+});
+
+// ── Resize ────────────────────────────────────────────────────────────────
+window.addEventListener('resize', resizeCanvases);
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SECTION: UTILITIES
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * @param {string} msg
+ * @param {number} [duration=2500]
+ * @returns {void}
+ */
+function showToast(msg, duration = 2500) {
+  ui.statusToast.textContent = msg;
+  ui.statusToast.classList.add('visible');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => ui.statusToast.classList.remove('visible'), duration);
+}
+
+/**
+ * @param {number} sec
+ * @returns {string}
+ */
+function formatTime(sec) {
+  if (!isFinite(sec) || sec < 0) return '0:00';
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+/**
+ * @param {number} note  MIDI note number
+ * @returns {string}
+ */
+function midiNoteToName(note) {
+  const NAMES  = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  const octave = Math.floor(note / 12) - 1;
+  return NAMES[note % 12] + octave;
+}
+
+/**
+ * Sanitise a string for use as a filename.
+ * @param {string} name
+ * @returns {string}
+ */
+function _safeName(name) {
+  return name.replace(/[^a-zA-Zа-яА-Я0-9_\- ]/g, '_');
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   INIT — idle canvas placeholder
+   ═══════════════════════════════════════════════════════════════════════════ */
+setTimeout(() => {
+  const W  = ui.noteCanvas.width  = ui.noteCanvas.clientWidth  || 800;
+  const H  = ui.noteCanvas.height = ui.noteCanvas.clientHeight || 400;
+  const hx = W * CONFIG.HIT_LINE_X_RATIO;
+  noteCtx.fillStyle = 'rgba(124,106,255,0.06)';
+  noteCtx.fillRect(0, 0, W, H);
+  noteCtx.fillStyle = 'rgba(124,106,255,0.15)';
+  noteCtx.fillRect(hx - 1, 0, 2, H);
+  noteCtx.fillStyle  = 'rgba(255,255,255,0.12)';
+  noteCtx.font       = '15px Segoe UI,sans-serif';
+  noteCtx.textAlign  = 'center';
+  noteCtx.fillText(t('canvasHint'), W / 2, H / 2);
+  ui.ovCanvas.width  = ui.ovCanvas.clientWidth  || 800;
+  ui.ovCanvas.height = 44;
+  drawOverviewStrip();
+}, 100);
+
+}()); // end IIFE
+</script>
+</body>
+</html>
