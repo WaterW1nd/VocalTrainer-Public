@@ -121,12 +121,6 @@ index.html           — Complete application (HTML + CSS + JavaScript in a sing
 pitch-processor.js   — AudioWorkletProcessor for YIN pitch detection (loaded at runtime)
 ```
 
-Optional files to add:
-```
-screenshot.png       — App screenshot shown in README
-*.vkt                — Saved training session files (JSON + base64 assets)
-```
-
 ## Extending the Project
 
 - **Add warmup presets** — add an entry to `WARMUP_PRESETS` (id, label key, intervals array, direction). `generateScaleNotes()` will pick it up automatically; no UI code changes needed.
