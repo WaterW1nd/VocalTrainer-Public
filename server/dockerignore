@@ -1,0 +1,44 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# .dockerignore — исключаем лишнее из build context
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Браузерный фронтенд (не нужен внутри образа)
+index.html
+index-4.html
+pitch-processor.js
+
+# Документация
+*.md
+CLAUDE.md
+CHANGELOG.md
+
+# Временные файлы задач
+tmp/
+tmp/**
+
+# Git
+.git/
+.gitignore
+
+# Кэш Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Виртуальные окружения
+.venv/
+venv/
+env/
+
+# Системные файлы macOS / Windows
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Редакторы
+.idea/
+.vscode/
+*.swp
+*.swo

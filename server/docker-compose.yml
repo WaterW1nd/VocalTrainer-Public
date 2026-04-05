@@ -1,0 +1,67 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# Karaoke Vocal Trainer — docker-compose.yml
+#
+# Usage:
+#   docker compose up -d          — собрать и запустить
+#   docker compose logs -f        — смотреть логи
+#   docker compose down           — остановить
+#
+# После первого запуска Demucs скачивает модель htdemucs_ft (~300 MB) в volume
+# "vt_models". При последующих запусках модель берётся из кэша.
+# ──────────────────────────────────────────────────────────────────────────────
+
+services:
+  tools_server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: vocal-trainer-tools:latest
+    container_name: vt_tools_server
+
+    # ── Порт: хост:контейнер ─────────────────────────────────────────────────
+    ports:
+      - "5050:5050"
+
+    # ── Переменные окружения ─────────────────────────────────────────────────
+    environment:
+      PORT: "5050"
+      LISTEN_HOST: "0.0.0.0"
+      DEMUCS_MODEL: "htdemucs_ft"
+      DEMUCS_THREADS: "4"       # OMP/MKL потоки — уменьши чтобы не загружать 100% CPU
+      DEMUCS_TIMEOUT_SEC: "2700" # 45 мин — kill при зависании
+      FFMPEG_CMD: "ffmpeg"
+      CONVERT_SAMPLE_RATE: "44100"
+      CONVERT_CHANNELS: "2"
+      # Укажи свой origin если хочешь ограничить доступ, напр:
+      # ALLOW_ORIGIN: "http://localhost:8080"
+      ALLOW_ORIGIN: "*"
+      MAX_JOB_AGE_SEC: "7200"   # 2 часа — файлы удаляются автоматически
+      TORCH_HOME: "/models"
+
+    # ── Тома ─────────────────────────────────────────────────────────────────
+    volumes:
+      # Временные файлы задач (чистятся автоматически через 24ч)
+      - vt_tmp:/app/tmp
+      # Модели Demucs встроены в образ — volume больше не нужен
+
+    # ── Политика перезапуска ─────────────────────────────────────────────────
+    restart: unless-stopped
+
+    # ── CORS: браузер открыт на localhost:8080 ───────────────────────────────
+    # Если ты открываешь index.html через file:// или другой порт — поменяй
+    # ALLOW_ORIGIN выше или оставь "*"
+
+    # ── Ограничения ресурсов (опционально) ───────────────────────────────────
+    # Demucs на CPU потребляет ~2–4 GB RAM на трек 3-5 минут.
+    # Раскомментируй и подбери под свою машину:
+    # deploy:
+    #   resources:
+    #     limits:
+    #       memory: 6g
+    #     reservations:
+    #       memory: 2g
+
+# ── Named volumes ─────────────────────────────────────────────────────────────
+volumes:
+  vt_tmp:
+    driver: local

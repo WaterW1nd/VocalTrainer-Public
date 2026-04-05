@@ -1,0 +1,9 @@
+# tools_server.py — Python dependencies
+# torch и torchaudio устанавливаются отдельным шагом в Dockerfile (CPU-only).
+# Здесь только demucs и basic-pitch.
+
+# Demucs 4.0.1 — source separation
+demucs==4.0.1
+
+# Basic Pitch 0.4.0 — audio → MIDI (использует TFLite на Linux)
+basic-pitch==0.4.0

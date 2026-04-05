@@ -1,135 +1,337 @@
-# Karaoke Vocal Trainer
+# Karaoke Vocal Trainer — Руководство пользователя
 
-A local, browser-based vocal training tool with two modes: **Karaoke** (play backing tracks and score your pitch in real time) and **Warmup** (voice exercises without needing audio/MIDI files). Built entirely in vanilla JavaScript with the Web Audio API and Canvas 2D — no framework, no server, no dependencies.
+Добро пожаловать! Это полный гайд по установке и использованию приложения.
 
-## Demo
+---
 
-<img width="1920" height="1109" alt="image" src="https://github.com/user-attachments/assets/e5440c6e-e47b-4384-ad03-097b91349b32" />
+## Содержание
 
-> The main screen shows a scrolling note-roll canvas (notes in blue/green/yellow moving right toward a vertical hit line), a glowing purple pitch ball tracking your live voice, an overview strip at the bottom, and the score/accuracy counters in the top bar.
+1. [Что умеет приложение](#1-что-умеет-приложение)
+2. [Установка — базовая (без Docker)](#2-установка--базовая-без-docker)
+3. [Установка — полная (с Docker, для подготовки треков)](#3-установка--полная-с-docker)
+4. [Режим Тренировка (Karaoke)](#4-режим-тренировка-karaoke)
+5. [Режим Распевка (Warmup)](#5-режим-распевка-warmup)
+6. [Режим Подготовка трека (Tools)](#6-режим-подготовка-трека-tools)
+7. [Горячие клавиши](#7-горячие-клавиши)
+8. [Частые вопросы](#8-частые-вопросы)
 
-## Features
+---
 
-### Karaoke Mode
-- Drag-and-drop or file-picker loading of WAV/MP3 audio (multiple files mixed automatically) and a MIDI file with the vocal melody
-- Real-time YIN pitch detection via `AudioWorkletProcessor` (~40 ms latency), with `ScriptProcessorNode` fallback for older browsers
-- Scrolling note-roll canvas with colour-coded verdicts: green = hit, yellow = near, dark = miss
-- Pitch ball that tracks your live voice with smooth interpolation
-- Scoring: hit (≤1 semitone off) = 100 pts, near (≤2 semitones off) = 50 pts, miss = 0 pts; final accuracy shown as a percentage and star rating (1–3 stars)
-- Lyrics support: paste raw text, auto-distributed across notes; shown on note tiles and in a resizable side panel
-- Per-note lyric editor to fine-tune text assignments
-- Transpose slider (−6 to +6 semitones) and practice speed mode (75%)
-- Metronome with configurable BPM using Web Audio API scheduled oscillators
-- Session recording: saves mixed audio (phonogram + mic) and mic-only track as `.webm`
-- Save/load entire session as a `.vkt` project file (includes MIDI, audio, lyrics, and note bindings)
-- Overview strip with click-to-seek navigation; keyboard seek with arrow keys
-- Shareable results PNG screenshot (640×360)
-- Input/output device selection (Chrome 110+)
+## 1. Что умеет приложение
 
-### Warmup Mode
-- **Single Note Hold** — select any note (C3–B4), hold it for the target duration, and see your accuracy and stability score. No audio/MIDI files required.
-- **Piano Note Match** — an on-screen 3-octave piano plays a random target; you sing to match it for instant hit/near/miss feedback.
-- **Scale / Pattern Practice** — 8 built-in patterns (major scale, minor scale, arpeggio, chromatic, etc.) scroll across a canvas at a configurable BPM and root note. A full accuracy breakdown is shown at the end.
-- Mic volume meter visible in all warmup sub-modes
-- All three sub-modes share the existing pitch detector — no duplicate audio logic
+Приложение работает **прямо в браузере** — ничего устанавливать для основных функций не нужно.
 
-## Requirements
+| Режим | Что нужно | Что делает |
+|---|---|---|
+| **Тренировка** | Микрофон + MIDI + аудио | Пение под фонограмму с оценкой попаданий в ноты |
+| **Распевка** | Только микрофон | Упражнения на удержание ноты и пение гамм |
+| **Подготовка трека** | Микрофон + Docker | Конвертация аудио, выделение вокала, создание MIDI |
 
-- **Browser:** Chrome 110+ (recommended for full feature set), Firefox 115+
-- **Microphone:** connected and accessible to the browser
-- **Karaoke mode:** requires a `.mid` file (vocal melody) and one or more WAV/MP3 audio files
-- **Warmup mode:** requires only a microphone — no audio or MIDI files needed
+---
 
-## Quick Start
+## 2. Установка — базовая (без Docker)
 
-### How to Run
+Для режимов **Тренировка** и **Распевка** никаких программ устанавливать не нужно.
 
-Open `index.html` directly in Chrome 110+ (double-click).
+### Шаг 1 — Скачать файлы
 
-> **Note:** For best pitch detection accuracy, serve via HTTP instead:
-> `python -m http.server 8080` → `http://localhost:8080`
-> Direct `file://` launch uses a fallback audio engine and works fine for casual use.
+Скачай два файла в одну папку:
+- `index.html`
+- `pitch-processor.js`
 
-On launch the app opens the **Mode Select** screen. Choose **Warmup** to practise without any files, or **Karaoke** to load audio + MIDI and score your singing.
+### Шаг 2 — Открыть в браузере
 
-## How It Works
+**Рекомендуется Chrome 110+** (Edge тоже работает).
 
-### Pitch Detection (shared)
+Просто открой `index.html` двойным кликом.
 
-Microphone audio is routed to `pitch-processor.js`, an `AudioWorkletProcessor` that accumulates samples in a 2048-sample ring buffer and runs the YIN algorithm every ~40 ms. YIN computes the cumulative mean normalised difference function, finds the first minimum below threshold 0.10, and applies parabolic interpolation for sub-sample accuracy. The detected frequency is converted to a MIDI note number. The same detector powers both Karaoke and Warmup modes.
+### Шаг 3 — Разрешить микрофон
 
-### Karaoke Mode
+При первом запуске браузер спросит разрешение на микрофон — нажми **Разрешить**.
 
-The MIDI file is parsed as raw binary: the app reads all tracks, builds a tempo map from `0xFF 0x51` meta-events, converts delta-ticks to seconds using piecewise tempo interpolation, and merges consecutive same-pitch notes separated by ≤ 0.15 s. Audio files are decoded with `AudioContext.decodeAudioData()` and played simultaneously through a shared `GainNode`.
+---
 
-The note-roll canvas redraws every animation frame. Notes are positioned using `tileX = hitLineX + (note.startSec - currentTime) × SCROLL_SPEED` and `tileY = noteToY(midiNote)` — a linear mapping from pitch range to canvas height. The pitch ball's Y position exponentially lerps toward the target at factor 0.12 each frame.
+## 3. Установка — полная (с Docker)
 
-Scoring per note:
-```
-if total_samples == 0          → miss
-if hit_samples / total >= 0.4  → hit   (+100 pts)
-if (hit+near) / total >= 0.4   → near  (+50 pts)
-else                           → miss  (+0 pts)
-```
+Docker нужен только для режима **«Подготовка трека»** (конвертация, разделение вокала, создание MIDI). Для тренировки и распевки он не нужен.
 
-Final accuracy: `(hits + nears × 0.5) / totalNotes × 100 %`
+### Шаг 1 — Установить Docker Desktop
 
-Star thresholds: ★★★ ≥ 85%, ★★ ≥ 60%, ★ ≥ 30%.
+1. Перейди на [docker.com/products/docker-desktop](https://www.docker.com/products/docker-desktop)
+2. Нажми **Download for Windows** и установи
+3. **Перезагрузи компьютер**
+4. Запусти Docker Desktop — в трее появится иконка кита 🐳
 
-### Warmup Mode
+### Шаг 2 — Скачать модели Demucs
 
-**Single Note Hold**: The selected target MIDI note is compared each frame against `state.detectedNote`. Samples within `WARMUP_HOLD_HIT_SEMITONES` (0.5 st) are "in-tune"; within `WARMUP_HOLD_NEAR_SEMITONES` (1.5 st) are "close". A moving stability window (`WARMUP_STABILITY_WINDOW` = 40 frames) drives the stability fill bar.
+Приложение использует модель `htdemucs_ft` для отделения вокала. Нужно скачать 4 файла по ~84 MB каждый **через браузер**:
 
-**Piano Note Match**: A random MIDI note is picked from the piano range (MIDI 48–84). The DOM-rendered piano keyboard highlights the target key. The first frame where `detectedNote` is within tolerance of the target registers the verdict.
-
-**Scale Practice**: `generateScaleNotes(presetId, rootNote, bpm)` builds a `NoteEvent[]` array from the preset's interval array. A dedicated `#warmupScaleCanvas` renders a scrolling note-roll (same coordinate model as the karaoke canvas) with a configurable lead-in. Per-note verdicts are accumulated over each note's window using the same hit/near/miss semitone logic.
-
-## Keyboard Shortcuts
-
-| Key | Action |
+| Файл | Ссылка |
 |---|---|
-| `Space` | Play / Pause (Karaoke mode) |
-| `R` | Restart (Karaoke mode) |
-| `M` | Metronome on / off (Karaoke mode) |
-| `L` | Show / hide lyrics panel (Karaoke mode) |
-| `T` | Transpose +1 semitone (Karaoke mode) |
-| `?` or `/` | Show keyboard shortcut help |
-| `Esc` | Close any open dialog or modal |
-| `←` / `→` | Seek −5 s / +5 s (Karaoke mode) |
-| Click on overview strip | Seek to clicked position (Karaoke mode) |
+| `f7e0c4bc-ba3fe64a.th` | https://dl.fbaipublicfiles.com/demucs/hybrid_transformer/f7e0c4bc-ba3fe64a.th |
+| `d12395a8-e57c48e6.th` | https://dl.fbaipublicfiles.com/demucs/hybrid_transformer/d12395a8-e57c48e6.th |
+| `92cfc3b6-ef3bcb9c.th` | https://dl.fbaipublicfiles.com/demucs/hybrid_transformer/92cfc3b6-ef3bcb9c.th |
+| `04573f0d-f3cf25b2.th` | https://dl.fbaipublicfiles.com/demucs/hybrid_transformer/04573f0d-f3cf25b2.th |
 
-## File Format Notes
 
-### MIDI (Karaoke mode)
-
-- Any MIDI format (0, 1, 2) is accepted; all tracks are parsed and merged.
-- All channels are included — there is no channel filter. Supply a MIDI file with only the vocal melody.
-- SMPTE time division is not supported (throws an error).
-- NoteOn with velocity 0 is treated as NoteOff.
-- Notes shorter than 0.02 s are discarded. Consecutive same-pitch notes with a gap ≤ 0.15 s are merged.
-
-### Audio (Karaoke mode)
-
-- WAV files are recommended (most reliable cross-browser decoding).
-- MP3 files are supported but decode failures are per-file and non-fatal.
-- Multiple audio files are decoded separately and played simultaneously through the same `GainNode` — useful for separate instrumental tracks.
-
-## Project Structure
+Создай папку `models\` рядом с `Dockerfile` и положи туда все 4 файла:
 
 ```
-index.html           — Complete application (HTML + CSS + JavaScript in a single IIFE)
-pitch-processor.js   — AudioWorkletProcessor for YIN pitch detection (loaded at runtime)
+karaoke-trainer\
+├── index.html
+├── pitch-processor.js
+├── Dockerfile
+├── docker-compose.yml
+├── requirements.txt
+├── tools_server.py
+└── models\
+    ├── f7e0c4bc-ba3fe64a.th
+    ├── d12395a8-e57c48e6.th
+    ├── 92cfc3b6-ef3bcb9c.th
+    └── 04573f0d-f3cf25b2.th
 ```
 
-## Extending the Project
+### Шаг 3 — Собрать и запустить контейнер
 
-- **Add warmup presets** — add an entry to `WARMUP_PRESETS` (id, label key, intervals array, direction). `generateScaleNotes()` will pick it up automatically; no UI code changes needed.
-- **Add song transposition UI presets** — store preset semitone offsets in an array and map them to buttons that call `ui.transposeSlider.dispatchEvent(new InputEvent('input'))` after setting `ui.transposeSlider.value`.
-- **Add polyphonic/chord display** — `parseMidi()` currently keeps overlapping notes; the renderer renders them at their respective `noteToY()` positions. To highlight chords, group `NoteEvent[]` by overlapping time windows before passing to the renderer.
-- **Add pitch deviation history trail** — push detected MIDI note + timestamp into a circular buffer in `renderFrame()` and draw a fading polyline before the pitch ball.
-- **Add a practice loop** — store `loopStart` and `loopEnd` in `state`, check them in `renderFrame()`, and call `startAudioPlayback(loopStart / state.playbackRate)` when `currentSec >= loopEnd`.
-- **Add MIDI channel filter** — add a `MIDI_CHANNEL` constant to `CONFIG` and filter events in `parseMidi()` before building `pendingNotes`.
+Открой **PowerShell** в папке с файлами и выполни:
 
-## License
+```powershell
+docker compose up -d --build
+```
 
-MIT — see `LICENSE` file.
+Первая сборка займёт ~5–10 минут. Последующие запуски — мгновенно.
+
+### Шаг 4 — Проверить статус
+
+Открой `index.html` → «Подготовка трека». В верхней строке должен гореть зелёный кружок **● Сервер работает**.
+
+### Управление контейнером
+
+```powershell
+docker compose up -d       # Запустить
+docker compose down        # Остановить
+docker compose logs -f     # Смотреть логи
+docker compose restart     # Перезапустить
+```
+
+---
+
+## 4. Режим Тренировка (Karaoke)
+
+### Что нужно подготовить
+
+- **Аудиофайл** — фонограмма (трек без вокала) в формате WAV или MP3
+- **MIDI-файл** — мелодия вокала (только вокальная дорожка!)
+
+> Если у тебя есть полная запись с вокалом, используй режим «Подготовка трека» чтобы получить и фонограмму, и MIDI автоматически.
+
+### Загрузка файлов
+
+1. На главном экране нажми **«Тренировка»**
+2. Перетащи аудиофайл(ы) в зону «Перетащи WAV/MP3»
+3. Перетащи MIDI-файл в зону «Перетащи MIDI»
+4. Нажми **«Старт»**
+
+### Экран тренировки
+
+```
+┌─────────────────────────────────────────────────┐
+│  Ноты движутся справа налево                    │
+│  ●  ← Питч-шарик (твой голос)                   │
+│  ████  ← Ноты из MIDI (синие/зелёные/жёлтые)    │
+└─────────────────────────────────────────────────┘
+│  Обзорная полоса (кликни для перемотки)         │
+└─────────────────────────────────────────────────┘
+```
+
+- **Зелёная нота** — попал (≤1 полутон)
+- **Жёлтая нота** — близко (≤2 полутона)
+- **Тёмная нота** — промах
+
+### Оценка
+
+После окончания MIDI-дорожки появится результат:
+- **%** точности
+- **★ звёзды**: ★★★ ≥ 85%, ★★ ≥ 60%, ★ ≥ 30%
+
+### Полезные настройки
+
+| Элемент | Где найти | Что делает |
+|---|---|---|
+| Транспонирование | Слайдер в топ-баре | Сдвинуть все ноты на ±6 полутонов |
+| Скорость 75% | Кнопка в топ-баре | Замедлить темп для разучивания |
+| Метроном | Кнопка М | Включить/выключить ритм |
+| Текст | Вставь в поле «Текст» | Слова песни под нотами |
+
+### Сохранение сессии
+
+Нажми кнопку **«💾 Сохранить»** — создаётся файл `.vkt` со всеми данными (аудио + MIDI + текст + статистика). Загружается обратно через «📂 Загрузить».
+
+---
+
+## 5. Режим Распевка (Warmup)
+
+### Удержание ноты
+
+1. На главном экране нажми **«Распевка»** → вкладка **«Удержание»**
+2. Выбери режим: **Голос** или **Пианино**
+
+**Режим Голос:**
+- Выбери тип голоса (Сопрано / Меццо / Альт / Тенор / Баритон / Бас)
+- Выбери диапазон (Низкий / Средний / Высокий)
+- Нажми на целевую ноту
+- Пой и удерживай ноту нужное время (4 / 6 / 8 секунд)
+
+**Режим Пианино:**
+- Нажми клавишу на экранном пианино — она прозвучит
+- Спой эту ноту
+- Используй `◄` / `►` для смены октавы
+
+**Что показывает экран:**
+- Большие буквы вверху — целевая нота и твоя спетая нота
+- **Стабильность** — насколько ровно ты держишь ноту
+- После окончания — среднее отклонение в полутонах и % точных фреймов
+
+### Гаммы
+
+1. Перейди на вкладку **«Гаммы»**
+2. Выбери паттерн (Мажор, Минор, Арпеджио и др.)
+3. Выбери корневую ноту и темп (BPM)
+4. Нажми **«▶ Старт»**
+5. Пой ноты по мере их появления на экране
+
+**Пользовательские гаммы:**
+- Открой «✏️ Конструктор гаммы»
+- Введи интервалы через запятую (напр. `0,2,4,5,7,9,11,12` = мажорная гамма)
+- Нажми **«💾 Сохранить»** — гамма появится в списке
+
+---
+
+## 6. Режим Подготовка трека (Tools)
+
+> **Требует запущенного Docker-контейнера** (см. раздел 3).
+
+На главном экране нажми **«Подготовка трека»**. Зелёный кружок = сервер работает.
+
+### Типичный рабочий процесс
+
+#### Если есть MP3/WAV с вокалом:
+
+```
+1. Разделить трек → перетащи файл → «▶ Разделить на вокал + фонограмму»
+   (~2–5 мин на CPU)
+   
+2. Нажми «→ Перейти к созданию MIDI»
+
+3. Создать MIDI → «▶ Создать MIDI» (~30–90 сек)
+
+4. При необходимости настрой ползунки в панели «Настройка MIDI»
+
+5. Нажми «→ Использовать как MIDI в Karaoke»
+   (переходишь на экран загрузки Тренировки с готовым MIDI)
+
+6. В панели «Разделить трек» нажми «→ Использовать как фонограмму в Karaoke»
+   (добавляет no_vocals.wav как аудио)
+
+7. Нажми «Старт»!
+```
+
+#### Если есть WebM/OGG (запись браузера):
+
+```
+1. Конвертация аудио → перетащи файл → выбери WAV → «▶ Конвертировать»
+2. Нажми «→ Передать в "Разделить трек"»
+3. Далее как выше с шага 1
+```
+
+### Описание панелей
+
+#### 🎵 Конвертация аудио
+Конвертирует WebM, OGG, M4A, MP4, FLAC в WAV или MP3.
+- Выбери формат (WAV рекомендуется)
+- После конвертации: **⬇ Сохранить файл** или **→ Передать в «Разделить трек»**
+
+#### 🎤 Разделить трек
+Разделяет трек на вокал и фонограмму с помощью Demucs.
+- Принимает WAV или MP3
+- Результат: `vocals.wav` (вокал) и `no_vocals.wav` (фонограмма без вокала)
+- **⬇ Сохранить vocals.wav** — скачать вокальную дорожку
+- **⬇ Сохранить фонограмму** — скачать трек без вокала
+- **→ Использовать как фонограмму в Karaoke** — отправить `no_vocals.wav` в Тренировку
+- **→ Перейти к созданию MIDI** — передать вокал в следующую панель
+
+#### 🎼 Создать MIDI
+Транскрибирует вокальный WAV/MP3 в MIDI-файл с помощью Basic Pitch.
+
+| Ползунок | Что делает | Совет |
+|---|---|---|
+| Чувствительность нот | Порог обнаружения (0.3–0.9) | Увеличь → меньше ложных нот |
+| Минимальная длина | Фильтр коротких нот (50–600 мс) | Увеличь → убрать артефакты |
+
+- **⬇ Save MIDI** — скачать .mid файл
+- **→ Использовать как MIDI в Karaoke** — передать в Тренировку и перейти туда
+
+#### ⚙️ Настройка MIDI *(появляется после создания MIDI)*
+
+Дополнительная фильтрация нот перед отправкой в тренировку.
+
+| Ползунок | Что делает | Совет |
+|---|---|---|
+| Объединять паузы короче | Сшивает ноты с маленькой паузой | 0.3–0.6 с для пения |
+| Удалять ноты короче | Убирает очень короткие ноты | 0.2–0.4 с |
+
+Блок «До / После» показывает количество нот до и после фильтрации.
+
+Кнопка **«→ Отправить в тренировку»** — применяет настройки и переходит в Тренировку.
+
+---
+
+## 7. Горячие клавиши
+
+*(Только в режиме Тренировка)*
+
+| Клавиша | Действие |
+|---|---|
+| `Пробел` | Воспроизведение / Пауза |
+| `R` | Перезапуск с начала |
+| `M` | Метроном вкл/выкл |
+| `L` | Показать/скрыть панель с текстом |
+| `T` | Транспонировать +1 полутон |
+| `←` / `→` | Перемотка −5 сек / +5 сек |
+| `?` | Показать справку по клавишам |
+| `Esc` | Закрыть диалог |
+
+---
+
+## 8. Частые вопросы
+
+**Приложение не видит микрофон**
+→ Проверь, что браузер получил разрешение на микрофон (замок в адресной строке → Микрофон → Разрешить).
+
+**Питч определяется плохо / с задержкой**
+→ Запусти приложение через `python -m http.server 8080` вместо прямого открытия файла.
+
+**В Тренировке ноты не совпадают с фонограммой**
+→ Используй транспонирование (слайдер ±6 полутонов) чтобы сдвинуть MIDI под свой голос.
+
+**Разделение трека зависает на 85% очень долго**
+→ Нормально для длинных треков (1–3 мин трека ≈ 5–15 мин обработки на CPU). Если зависло более 45 минут — выполни `docker compose restart`.
+
+**Сервер показывает «Недоступен» хотя Docker работает**
+→ Подожди — при тяжёлой обработке пинг может задерживаться. Статус станет зелёным через 20–30 секунд после завершения задачи. Если красный долго — выполни `docker compose restart`.
+
+**MIDI содержит много лишних нот в тишине**
+→ Увеличь «Чувствительность нот» до 0.85–0.9 и «Минимальную длину» до 400–500 мс. Также используй панель «Настройка MIDI» для дополнительной фильтрации.
+
+**Кнопки в «Подготовке трека» неактивны**
+→ Убедись что файл выбран (зелёная рамка у зоны загрузки). Нотификация о доступности будет когда сервер ответит на пинг.
+
+**Как сохранить результаты тренировки?**
+→ В режиме Тренировка нажми «📸 Скриншот» для PNG-картинки, или «💾 Сохранить» для полного `.vkt` файла проекта.
+
+**Язык интерфейса**
+→ Кнопки EN / RU / ZH в правом верхнем углу в режимах Тренировка и Распевка.
+
+---
+
+*Karaoke Vocal Trainer v3.x.x*
