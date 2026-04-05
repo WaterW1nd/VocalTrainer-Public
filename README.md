@@ -74,21 +74,24 @@ Docker нужен только для режима **«Подготовка тр
 | `04573f0d-f3cf25b2.th` | https://dl.fbaipublicfiles.com/demucs/hybrid_transformer/04573f0d-f3cf25b2.th |
 
 
-Создай папку `models\` рядом с `Dockerfile` и положи туда все 4 файла:
+Скаченные файлы положи в папку `models\` рядом с `Dockerfile`:
 
 ```
 karaoke-trainer\
 ├── index.html
 ├── pitch-processor.js
-├── Dockerfile
-├── docker-compose.yml
-├── requirements.txt
-├── tools_server.py
-└── models\
-    ├── f7e0c4bc-ba3fe64a.th
-    ├── d12395a8-e57c48e6.th
-    ├── 92cfc3b6-ef3bcb9c.th
-    └── 04573f0d-f3cf25b2.th
+└── server\                     ← вся серверная часть здесь
+    ├── Dockerfile
+    ├── docker-compose.yml
+    ├── .dockerignore
+    ├── requirements.txt
+    ├── tools_server.py
+    ├── TOOLS_GUIDE.md
+    └── models\
+        ├── f7e0c4bc-ba3fe64a.th
+        ├── d12395a8-e57c48e6.th
+        ├── 92cfc3b6-ef3bcb9c.th
+        └── 04573f0d-f3cf25b2.th
 ```
 
 ### Шаг 3 — Собрать и запустить контейнер
